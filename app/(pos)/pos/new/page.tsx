@@ -87,10 +87,9 @@ const totals = useMemo(() => computeTotals(items, discount, payAmount, VAT_RATE,
   function submit() {
     if (!customer || items.length === 0) return;
     const order = pos.createOrder({
-      taxRate,
       clientId: t.id, customerId: customer.id, customerName: customer.fullName, customerPhone: customer.phone,
       deliveryType, deliveryDate, pickupTime, placement, items, discount, salesman: "Admin", notes,
-      payment: payAmount > 0 ? { type: payType, amount: payAmount } : undefined,
+payment: payAmount > 0 ? { type: payType, amount: payAmount } : undefined, taxRate,
     });
     router.push(`/pos/orders/${order.id}`);
   }
