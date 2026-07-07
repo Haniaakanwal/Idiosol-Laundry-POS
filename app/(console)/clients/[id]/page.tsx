@@ -236,7 +236,7 @@ function UsersTab({ t }: { t: any }) {
   const { usersFor, addUser, removeUser, updateUser } = useStore();
   const users = usersFor(t.id);
   const [open, setOpen] = useState(false);
-  const [nu, setNu] = useState({ name: "", email: "", role: "Cashier" as UserRole, department: "Front Counter" });
+const [nu, setNu] = useState({ name: "", username: "", password: "", role: "Cashier" as UserRole, department: "Front Counter" });
   const plan = PLAN_MAP[t.plan];
   const atLimit = plan.seatLimit !== null && users.length >= plan.seatLimit;
 
@@ -290,7 +290,8 @@ function UsersTab({ t }: { t: any }) {
       <Modal open={open} onClose={() => setOpen(false)} title={`Invite user to ${t.name}`}>
         <div className="space-y-4">
           <Field label="Full name"><input className={inputCls} value={nu.name} onChange={(e) => setNu({ ...nu, name: e.target.value })} placeholder="Alex Rivera" /></Field>
-          <Field label="Email"><input className={inputCls} value={nu.email} onChange={(e) => setNu({ ...nu, email: e.target.value })} placeholder="alex@shop.com" /></Field>
+<Field label="Username"><input className={inputCls} value={nu.username} onChange={(e) => setNu({ ...nu, username: e.target.value })} placeholder="alex.rivera" /></Field>
+<Field label="Password"><input className={inputCls} value={nu.password} onChange={(e) => setNu({ ...nu, password: e.target.value })} placeholder="temp password" /></Field>
           <div className="grid grid-cols-2 gap-4">
             <Field label="Role"><select className={inputCls} value={nu.role} onChange={(e) => setNu({ ...nu, role: e.target.value as UserRole })}>{ROLES.filter((r) => r !== "Owner").map((r) => <option key={r}>{r}</option>)}</select></Field>
             <Field label="Department"><input className={inputCls} value={nu.department} onChange={(e) => setNu({ ...nu, department: e.target.value })} /></Field>
@@ -298,7 +299,7 @@ function UsersTab({ t }: { t: any }) {
         </div>
         <div className="mt-5 flex justify-end gap-2 border-t border-slate-100 pt-4">
           <Button variant="secondary" onClick={() => setOpen(false)}>Cancel</Button>
-          <Button disabled={!nu.name || !nu.email} onClick={() => { addUser(t.id, nu); setOpen(false); setNu({ name: "", email: "", role: "Cashier", department: "Front Counter" }); }}>Send invite</Button>
+<Button disabled={!nu.name || !nu.username || !nu.password} onClick={() => { addUser(t.id, nu); setOpen(false); setNu({ name: "", username: "", password: "", role: "Cashier", department: "Front Counter" }); }}>Send invite</Button>
         </div>
       </Modal>
     </Card>
