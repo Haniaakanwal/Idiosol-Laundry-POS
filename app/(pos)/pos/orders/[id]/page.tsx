@@ -126,7 +126,7 @@ export default function OrderDetail() {
               <Row label="Subtotal" value={money(o.sub, cur)} />
               <Row label="Discount" value={`- ${money(o.discount, cur)}`} />
               <Row label={`VAT (${o.vatRate}%)`} value={money(o.vat, cur)} />
-             {o.taxRate > 0 && <Row label={`Tax (${o.taxRate}%)`} value={money(o.tax, cur)} />}
+            {((o as any).taxRate) > 0 && <Row label={`Tax (${(o as any).taxRate}%)`} value={money((o as any).tax, cur)} />}
               <div className="flex justify-between border-t border-slate-100 pt-2 text-base font-semibold text-slate-900"><span>Total</span><span>{money(o.total, cur)}</span></div>
               <Row label="Paid" value={money(o.paid, cur)} />
               <div className="flex justify-between text-sm font-semibold"><span className="text-slate-500">Balance</span><span className={o.balance > 0 ? "text-amber-600" : "text-emerald-600"}>{money(o.balance, cur)}</span></div>

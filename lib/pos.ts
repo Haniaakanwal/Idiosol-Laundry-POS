@@ -114,8 +114,8 @@ export interface POSOrder {
   discount: number;
   vatRate: number;
   vat: number;
-taxRate: number;
-tax: number;
+taxRate?: number; 
+  tax?: number;
   total: number;
   paid: number;
   balance: number;
