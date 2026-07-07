@@ -36,9 +36,10 @@ interface StoreValue extends DB {
   setPlan: (id: string, plan: PlanId) => void;
   toggleFeature: (id: string, key: FeatureKey, on: boolean) => void;
   clearOverride: (id: string, key: FeatureKey) => void;
-  addUser: (tenantId: string, u: { name: string; email: string; role: UserRole; department: string }) => void;
+  addUser: (tenantId: string, u: { name: string; username: string; password: string; role: UserRole; department: string }) => void;
   updateUser: (userId: string, patch: Partial<TenantUser>) => void;
   removeUser: (userId: string) => void;
+  updateUserModules: (userId: string, overrides: Partial<Record<FeatureKey, boolean>>) => void;
   usersFor: (tenantId: string) => TenantUser[];
   reset: () => void;
 }
@@ -200,37 +201,21 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           }),
         }));
       },
-
-  addUser(tenantId, u) {
-  const tempPassword = generateTempPassword();
-  const passwordHash = bcrypt.hashSync(tempPassword, 10);
-
+addUser(tenantId, u: { name: string; username: string; password: string; role: UserRole; department: string }) {
+  const passwordHash = bcrypt.hashSync(u.password, 10);
   setDb((prev) => {
-    const count = prev.users.filter((x) => x.tenantId === tenantId).length;
     const user: TenantUser = {
-      id: `${tenantId}_u${count + 1}_${u.email.length}`,
-      tenantId,
-      name: u.name,
-      email: u.email,
-      role: u.role,
-      department: u.department,
-      status: "invited",
-      lastActive: "—",
-      passwordHash,
+      id: `${tenantId}_u${prev.users.filter(x=>x.tenantId===tenantId).length+1}`,
+      tenantId, name: u.name, username: u.username, email: "", role: u.role,
+      department: u.department, status: "active", lastActive: "—",
+      passwordHash, moduleOverrides: {},
     };
-    return {
-      ...prev,
-      users: [...prev.users, user],
-      tenants: prev.tenants.map((t) => (t.id === tenantId ? { ...t, seatsUsed: t.seatsUsed + 1 } : t)),
-    };
-  });
-
-  fetch("/api/send-credentials", {
-    method: "POST",
-    body: JSON.stringify({ email: u.email, name: u.name, tempPassword, loginUrl: window.location.origin + "/login" }),
+    return { ...prev, users: [...prev.users, user], tenants: prev.tenants.map(t=>t.id===tenantId?{...t,seatsUsed:t.seatsUsed+1}:t) };
   });
 },
-
+updateUserModules(userId, overrides) {
+  setDb((prev) => ({ ...prev, users: prev.users.map(u => u.id===userId ? {...u, moduleOverrides: {...u.moduleOverrides, ...overrides}} : u) }));
+},
       updateUser(userId, patch) {
         setDb((prev) => ({ ...prev, users: prev.users.map((u) => (u.id === userId ? { ...u, ...patch } : u)) }));
       },

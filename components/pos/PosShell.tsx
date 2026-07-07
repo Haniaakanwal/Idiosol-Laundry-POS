@@ -6,12 +6,13 @@ import { useEffect, useState } from "react";
 import { useStore } from "@/lib/store";
 import { usePos } from "@/lib/pos-store";
 import { useAuth } from "@/lib/auth-store";
+import { canAccess } from "@/lib/rbac";
 import { isFeatureOn } from "@/lib/catalog";
 import { FeatureKey } from "@/lib/types";
 import {
   LayoutDashboard, PlusCircle, ClipboardList, Users, Building2, Shirt,
   CreditCard, BarChart3, Receipt, Megaphone, LogOut, ArrowLeft, ChevronDown,
-  MoreVertical, History, FileText,
+  MoreVertical, History, FileText,Users2
 } from "lucide-react";
 import { StatusBadge } from "@/components/ui";
 
@@ -26,6 +27,7 @@ const NAV: { href: string; label: string; icon: any; feature?: FeatureKey | Feat
   { href: "/pos/reports", label: "Reports", icon: BarChart3, feature: "reports" },
   { href: "/pos/vat", label: "VAT Returns", icon: Receipt, feature: "vat" },
   { href: "/pos/marketing", label: "Marketing", icon: Megaphone, feature: ["sms", "whatsapp", "promotions"] },
+  { href: "/pos/users", label: "Users", icon: Users2 },
 ];
 
 export function PosShell({ children }: { children: React.ReactNode }) {
@@ -48,8 +50,14 @@ export function PosShell({ children }: { children: React.ReactNode }) {
 
   if (!ready || !pos.ready) return <div className="p-10 text-sm text-slate-400">Loading…</div>;
 
-  // Admin with no client selected → show picker. (Staff are auto-assigned.)
-  if (!tenant) return isStaff ? <div className="p-10 text-sm text-slate-400">Loading…</div> : <ClientPicker />;
+if (!tenant) {
+  if (isStaff) {
+    // safety fallback: tenantId invalid, force logout instead of infinite loading
+    if (ready && pos.ready) { logout(); router.replace("/login"); }
+    return <div className="p-10 text-sm text-slate-400">Loading…</div>;
+  }
+  return <ClientPicker />;
+}
 
   function signOut() {
     logout();
@@ -61,7 +69,9 @@ export function PosShell({ children }: { children: React.ReactNode }) {
     const keys = Array.isArray(f) ? f : [f];
     return keys.some((k) => isFeatureOn(tenant.plan, tenant.featureOverrides, k));
   };
-  const nav = NAV.filter((n) => enabled(n.feature));
+const role = session?.role === "staff" ? session.userRole : "Owner";
+console.log("role:", role);
+const nav = NAV.filter((n) => enabled(n.feature) && canAccess(role, n.href));
 
   return (
     <div className="min-h-screen bg-slate-50">

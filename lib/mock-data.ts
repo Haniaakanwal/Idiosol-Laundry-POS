@@ -233,8 +233,7 @@ export function seedUsersFor(t: Tenant): TenantUser[] {
     const role: TenantUser["role"] = i === 0 ? "Owner" : ROLES[(i % (ROLES.length - 1)) + 1];
     const first = FIRST[(i + t.name.length) % FIRST.length];
     const last = LAST[(i * 3 + t.slug.length) % LAST.length];
-    users.push({
-      id: `${t.id}_u${i + 1}`,
+    users.push({    id: `${t.id}_u${i + 1}`,
       tenantId: t.id,
       name: `${first} ${last}`,
       email: `${first.toLowerCase()}.${last.toLowerCase()}@${t.slug}.com`,
@@ -242,7 +241,10 @@ export function seedUsersFor(t: Tenant): TenantUser[] {
       department: DEPTS[i % DEPTS.length],
       status: t.status === "suspended" || t.status === "churned" ? "disabled" : i === n - 1 && t.status === "trial" ? "invited" : "active",
       lastActive: t.status === "active" ? "2026-07-02" : t.status === "trial" ? "2026-07-01" : "2026-05-14",
+      username: `${first.toLowerCase()}.${last.toLowerCase()}`,
       passwordHash: "$2a$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31S.",
+      
+moduleOverrides: {},
     });
   }
   return users;

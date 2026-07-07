@@ -1,7 +1,6 @@
 "use client";
 import { useStore } from "./store";
 import bcrypt from "bcryptjs";
-
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { SEED_TENANTS, seedUsersFor } from "./mock-data";
 
@@ -38,7 +37,7 @@ function buildStaffDirectory(): StaffAccount[] {
   return list;
 }
 
-const STAFF_DIR = buildStaffDirectory();
+
 
 // Owner logins surfaced on the login screen as one-click demo accounts.
 export const DEMO_OWNER_LOGINS = SEED_TENANTS.filter((t) => t.status !== "churned").map((t) => ({
@@ -63,6 +62,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
 const { tenants, users } = useStore();
 
+
   useEffect(() => {
     try {
       const raw = typeof window !== "undefined" ? window.localStorage.getItem(LS_KEY) : null;
@@ -76,7 +76,7 @@ const { tenants, users } = useStore();
   useEffect(() => {
     if (!ready) return;
     try {
-      if (session) window.localStorage.setItem(LS_KEY, JSON.stringify(session));
+     if (session) window.localStorage.setItem(LS_KEY, JSON.stringify(session));
       else window.localStorage.removeItem(LS_KEY);
     } catch {
       /* ignore */
@@ -93,27 +93,18 @@ const { tenants, users } = useStore();
         setSession({ role: "admin", name: ADMIN_ACCOUNT.name, email: ADMIN_ACCOUNT.email });
         return { ok: true };
       }
-  const staff = users.find((u) => u.email.toLowerCase() === e);
-if (!staff) return { ok: false, error: "No account found for that email." };
 
-const valid = bcrypt.compareSync(password, staff.passwordHash);
-if (!valid) return { ok: false, error: "Incorrect password." };
-
-const tenant = tenants.find((t) => t.id === staff.tenantId);
-setSession({
-  role: "staff",
-  tenantId: staff.tenantId,
-  name: staff.name,
-  email: staff.email,
-  userRole: staff.role,
-});
+      const staff = users.find((u) => u.username?.toLowerCase() === e || u.email?.toLowerCase() === e);
+if (!staff) return { ok: false, error: "No account found." };
+if (!bcrypt.compareSync(password, staff.passwordHash)) return { ok: false, error: "Incorrect password." };
+setSession({ role: "staff", tenantId: staff.tenantId, name: staff.name, email: staff.email, userRole: staff.role });
 return { ok: true };
 
     },
     logout() {
       setSession(null);
     },
-  }), [session, ready]);
+}), [session, ready, users, tenants]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

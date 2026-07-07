@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-store";
+import { canAccess } from "@/lib/rbac";
 
 function Splash() {
   return <div className="flex min-h-screen items-center justify-center text-sm text-slate-400">Loading…</div>;
@@ -23,16 +24,20 @@ export function RequireAdmin({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-// POS pages require any authenticated session (admin impersonating, or staff).
 export function RequireAuth({ children }: { children: React.ReactNode }) {
   const { session, ready } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     if (!ready) return;
-    if (!session) router.replace("/login");
-  }, [session, ready, router]);
+    if (!session) { router.replace("/login"); return; }
+    if (session.role === "staff" && !canAccess(session.userRole, pathname)) {
+      router.replace("/pos");
+    }
+  }, [session, ready, router, pathname]);
 
   if (!ready || !session) return <Splash />;
+  if (session.role === "staff" && !canAccess(session.userRole, pathname)) return <Splash />;
   return <>{children}</>;
 }
