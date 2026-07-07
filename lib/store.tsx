@@ -18,7 +18,12 @@ taxRate: 0,
 function seed(): DB {
   const tenants = SEED_TENANTS;
   const users = tenants.flatMap((t) => seedUsersFor(t));
-  return { tenants, users, activity: SEED_ACTIVITY };
+return { 
+  tenants, 
+  users, 
+  activity: SEED_ACTIVITY,
+  taxEnabled: false, 
+  taxRate: 0,        
 }
 
 interface StoreValue extends DB {
