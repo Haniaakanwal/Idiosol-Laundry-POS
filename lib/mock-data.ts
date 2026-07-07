@@ -243,7 +243,7 @@ export function seedUsersFor(t: Tenant): TenantUser[] {
       lastActive: t.status === "active" ? "2026-07-02" : t.status === "trial" ? "2026-07-01" : "2026-05-14",
       username: `${first.toLowerCase()}.${last.toLowerCase()}`,
       passwordHash: "$2a$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31S.",
-      
+      password: "laundry123",
 moduleOverrides: {},
     });
   }
