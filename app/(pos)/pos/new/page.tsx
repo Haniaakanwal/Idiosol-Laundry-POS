@@ -7,7 +7,7 @@ import { usePos } from "@/lib/pos-store";
 import { money } from "@/lib/format";
 import {
   SERVICE_TYPES, HANG_FOLD, DELIVERY_TYPES, PAYMENT_TYPES, PLACEMENTS,
-  ServiceType, HangFold, DeliveryType, PaymentType, Placement,
+  ServiceType, HangFold, DeliveryType, PaymentType, Placement, 
   POSOrderItem, POSCustomer, POSService, lineTotal, computeTotals, isUrgentType, VAT_RATE,
 } from "@/lib/pos";
 import { Card, Button, Field, inputCls, Modal, Badge } from "@/components/ui";
