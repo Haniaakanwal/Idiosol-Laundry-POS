@@ -1,7 +1,5 @@
 import { Tenant, TenantUser, ActivityEvent } from "./types";
 
-// Deterministic seed data — represents the clients that used to each have their
-// own LaundryPOS.fmp12 copy and are now tenants in the shared platform.
 import bcrypt from "bcryptjs";
 
 
@@ -244,7 +242,7 @@ export function seedUsersFor(t: Tenant): TenantUser[] {
       department: DEPTS[i % DEPTS.length],
       status: t.status === "suspended" || t.status === "churned" ? "disabled" : i === n - 1 && t.status === "trial" ? "invited" : "active",
       lastActive: t.status === "active" ? "2026-07-02" : t.status === "trial" ? "2026-07-01" : "2026-05-14",
-      passwordHash: bcrypt.hashSync("laundry123", 10),
+      passwordHash: "$2a$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31S.",
     });
   }
   return users;
