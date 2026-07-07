@@ -145,6 +145,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     status: "active",
     lastActive: "2026-07-03",
     passwordHash,
+    username: input.email.split("@")[0],
+password: tempPassword,
+moduleOverrides: {},
   };
    setDb((prev) => ({
   ...prev, // <-- Add this line right here!
