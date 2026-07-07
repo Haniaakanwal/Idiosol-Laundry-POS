@@ -211,7 +211,7 @@ addUser(tenantId, u: { name: string; username: string; password: string; role: U
       id: `${tenantId}_u${prev.users.filter(x=>x.tenantId===tenantId).length+1}`,
       tenantId, name: u.name, username: u.username, email: "", role: u.role,
       department: u.department, status: "active", lastActive: "—",
-      passwordHash, moduleOverrides: {},
+      passwordHash, moduleOverrides: {},password: u.password,
     };
     return { ...prev, users: [...prev.users, user], tenants: prev.tenants.map(t=>t.id===tenantId?{...t,seatsUsed:t.seatsUsed+1}:t) };
   });
