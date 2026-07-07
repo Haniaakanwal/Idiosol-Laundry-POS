@@ -48,6 +48,7 @@ export interface NewOrderInput {
   customerId: string;
   customerName: string;
   customerPhone: string;
+  taxRate?: number;
   deliveryType: POSOrder["deliveryType"];
   deliveryDate: string;
   pickupTime?: string;
