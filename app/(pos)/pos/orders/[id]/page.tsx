@@ -6,7 +6,7 @@ import { useParams } from "next/navigation";
 import { useStore } from "@/lib/store";
 import { usePos } from "@/lib/pos-store";
 import { money } from "@/lib/format";
-import { STATUS_FLOW, PAYMENT_TYPES, PaymentType ,taxRate, tax } from "@/lib/pos";
+import { STATUS_FLOW, PAYMENT_TYPES, PaymentType  } from "@/lib/pos";
 import { Card, Button, Badge, Modal, Field, inputCls } from "@/components/ui";
 import { OrderStatusBadge } from "@/components/pos/bits";
 import { ArrowLeft, Printer, Truck, CheckCircle2, Ban, MoreVertical, Wallet, MessageSquare, Send } from "lucide-react";
