@@ -9,7 +9,7 @@ import { Card, Button, Modal, Field, inputCls, Toggle, Badge } from "@/component
 import { Plus, Trash2 } from "lucide-react";
 import { usePos } from "@/lib/pos-store";
 import bcrypt from "bcryptjs";
-
+import { canAccess } from "@/lib/rbac";
 const ROLES: UserRole[] = ["Manager", "Cashier", "Driver"];
 
 export default function PosUsersPage() {
@@ -82,7 +82,7 @@ const [pwValue, setPwValue] = useState("");
                       {FEATURES.map((f) => (
                         <div key={f.key} className="flex items-center justify-between rounded-lg bg-white px-3 py-2 ring-1 ring-slate-200">
                           <span className="text-sm text-slate-700">{f.name}</span>
-                          <Toggle on={u.moduleOverrides[f.key] ?? true} onChange={(v) => updateUserModules(u.id, { [f.key]: v })} />
+<Toggle on={u.moduleOverrides[f.key] ?? canAccess(u.role, `/pos/${f.key}`)} onChange={(v) => updateUserModules(u.id, { [f.key]: v })} />
                         </div>
                       ))}
                     </div>
