@@ -179,7 +179,7 @@ const totals = computeTotals(o.items, o.discount, o.payment?.amount ?? 0, VAT_RA
           vatRate: VAT_RATE,
           vat: totals.vat,
       taxRate: o.taxRate ?? 0,
-      tax: totals.bohTax,
+      tax: totals.Tax,
           total: totals.total,
           paid: o.payment?.amount ?? 0,
           balance: totals.balance,

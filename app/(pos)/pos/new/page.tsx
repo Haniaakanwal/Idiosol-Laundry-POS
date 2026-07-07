@@ -237,7 +237,7 @@ payment: payAmount > 0 ? { type: payType, amount: payAmount } : undefined, taxRa
                     )}
                   </div>
 
-                <TotalsRow label="Total" value={money(totals.sub + totals.vat + totals.bohTax, cur)} big />
+                <TotalsRow label="Total" value={money(totals.sub + totals.vat + totals.Tax, cur)} big />
                   <Button className="mt-3 w-full" disabled={!canNext} onClick={() => { setPayAmount(0); setStep("pay"); }}>
                     Next: Payment <ArrowRight className="h-4 w-4" />
                   </Button>
@@ -253,8 +253,8 @@ payment: payAmount > 0 ? { type: payType, amount: payAmount } : undefined, taxRa
                     
                     </div>
                     <TotalsRow label={`VAT ${VAT_RATE}%`} value={money(totals.vat, cur)} />
-                     {taxRate > 0 && <TotalsRow label={`Tax ${taxRate}%`} value={money(totals.bohTax, cur)} />}
-                   <TotalsRow label="Total" value={money(totals.sub + totals.vat + totals.bohTax - discount, cur)} big />
+                     {taxRate > 0 && <TotalsRow label={`Tax ${taxRate}%`} value={money(totals.Tax, cur)} />}
+                   <TotalsRow label="Total" value={money(totals.sub + totals.vat + totals.Tax - discount, cur)} big />
                   </div>
                   <div className="rounded-lg bg-slate-50 p-3">
                     <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400">Take payment</div>
