@@ -114,8 +114,8 @@ export interface POSOrder {
   discount: number;
   vatRate: number;
   vat: number;
-  bohTaxRate: number;
-bohTax: number;
+taxRate: number;
+tax: number;
   total: number;
   paid: number;
   balance: number;
@@ -134,19 +134,19 @@ export function lineTotal(unitPrice: number, qty: number): number {
 export interface Totals {
   sub: number;
   vat: number;
-  bohTax: number;
+  Tax: number;
   total: number;
   balance: number;
 }
 
-export function computeTotals(items: POSOrderItem[], discount: number, paid: number, vatRate = VAT_RATE, bohTaxRate = 0): Totals {
+export function computeTotals(items: POSOrderItem[], discount: number, paid: number, vatRate = VAT_RATE, TaxRate = 0): Totals {
   const sub = items.reduce((s, i) => s + i.lineTotal, 0);
   const taxable = Math.max(0, sub - discount);
   const vat = Math.round(taxable * (vatRate / 100) * 100) / 100;
-  const bohTax = Math.round(taxable * (bohTaxRate / 100) * 100) / 100;
-  const total = Math.round((taxable + vat + bohTax) * 100) / 100;
+  const Tax = Math.round(taxable * (TaxRate / 100) * 100) / 100;
+  const total = Math.round((taxable + vat + Tax) * 100) / 100;
   const balance = Math.round((total - paid) * 100) / 100;
-  return { sub: Math.round(sub * 100) / 100, vat, bohTax, total, balance };
+  return { sub: Math.round(sub * 100) / 100, vat, Tax, total, balance };
 }
 
 export const STATUS_FLOW: Record<OrderStatus, { next?: OrderStatus; label: string; tone: string }> = {
