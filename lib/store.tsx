@@ -131,6 +131,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           monthlyOrders: 0,
           mrr: input.trial ? 0 : planPrice(input.plan),
           featureOverrides: {},
+          taxEnabled: false,
+          taxRate: 0,
         };
  const owner: TenantUser = {
     id: `${id}_u1`,
@@ -143,11 +145,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     lastActive: "2026-07-03",
     passwordHash,
   };
-        setDb((prev) => ({
-          tenants: [tenant, ...prev.tenants],
-          users: [owner, ...prev.users],
-          activity: [logEvent(prev, { tenantId: id, tenantName: input.name, kind: "signup", message: input.trial ? "Provisioned (trial)" : "Provisioned (paid)" }), ...prev.activity],
-        }));
+   setDb((prev) => ({
+  ...prev, // <-- Add this line right here!
+  tenants: [tenant, ...prev.tenants],
+  users: [owner, ...prev.users],
+  activity: [logEvent(prev, { tenantId: id, tenantName: input.name, kind: "signup", message: input.trial ? "Provisioned (trial)" : "Provisioned" }), ...prev.activity],
+}));
         return tenant;
       },
 
