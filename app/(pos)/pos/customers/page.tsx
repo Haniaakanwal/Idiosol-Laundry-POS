@@ -44,30 +44,20 @@ const [expanded, setExpanded] = useState<string | null>(null);
             <th className="px-5 py-3">Name</th><th className="px-4 py-3">Phone</th><th className="px-4 py-3">Orders</th><th className="px-4 py-3">Balance</th><th className="px-4 py-3">Flags</th><th className="px-4 py-3"></th>
           </tr></thead>
           <tbody className="divide-y divide-slate-100">
-        {rows.map((c) => (
-  <>
-    <tr key={c.id} className="hover:bg-slate-50/60 cursor-pointer" onClick={() => setExpanded(expanded === c.id ? null : c.id)}>
-      {/* ...existing cells... */}
-    </tr>
-    {expanded === c.id && (
-      <tr><td colSpan={6} className="bg-slate-50 px-5 py-4">
-        <div className="text-xs font-semibold uppercase text-slate-400 mb-2">WhatsApp history — {c.fullName}</div>
-        {pos.messagesFor(c.id).length === 0 ? (
-          <p className="text-sm text-slate-400">No messages sent yet.</p>
-        ) : (
-          <ul className="space-y-1.5 text-sm">
-            {pos.messagesFor(c.id).map((m) => (
-              <li key={m.id} className="flex justify-between bg-white rounded-lg px-3 py-2 ring-1 ring-slate-200">
-                <span className="text-slate-700">{m.text}</span>
-                <span className="text-xs text-slate-400">{new Date(m.sentAt).toLocaleString()} · {m.status}</span>
-              </li>
+            {rows.map((c) => (
+              <tr key={c.id} className="hover:bg-slate-50/60 cursor-pointer" onClick={() => setExpanded(expanded === c.id ? null : c.id)}>
+                <td className="px-5 py-3"><div className="font-medium text-slate-900">{c.fullName}</div><div className="text-xs text-slate-400">{c.address}</div></td>
+                <td className="px-4 py-3 text-slate-600">{c.phone}</td>
+               <td className="px-4 py-3">
+  <Link href={`/pos/orders?customerId=${c.id}`} className="inline-flex items-center gap-1 text-brand-600 hover:underline">
+    <ShoppingBag className="h-3.5 w-3.5" /> {orderCount(c.id)}
+  </Link>
+</td>
+                <td className="px-4 py-3">{c.balance > 0 ? <span className="font-medium text-amber-600">{money(c.balance, cur)}</span> : <span className="text-slate-400">—</span>}</td>
+                <td className="px-4 py-3">{c.isBlacklist && <Badge tone="rose">blacklist</Badge>}</td>
+                <td className="px-4 py-3 text-right"><button onClick={() => setEdit(c)} className="text-xs font-medium text-brand-600 hover:underline">Edit</button></td>
+              </tr>
             ))}
-          </ul>
-        )}
-      </td></tr>
-    )}
-  </>
-))}
             {rows.length === 0 && <tr><td colSpan={6} className="px-5 py-12 text-center text-sm text-slate-400">No customers match.</td></tr>}
           </tbody>
         </table>
