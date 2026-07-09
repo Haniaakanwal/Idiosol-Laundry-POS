@@ -6,13 +6,25 @@ import { SEED_TENANTS, seedUsersFor } from "./mock-data";
 
 const LS_KEY = "laundry-saas-auth:v1";
 
-// Demo credentials. In production these become hashed passwords in the users
-// table; here they're fixed so the prototype can be logged into and tested.
-export const ADMIN_ACCOUNT = { email: "pa@healthandlife.com.au", password: "idiosol123", name: "Idiosol Admin" };
+
+const ADMIN_LS_KEY = "laundry-saas-admin-account:v1";
+const DEFAULT_ADMIN = { email: "sohaibkhan2030@gmail.com", passwordHash: bcrypt.hashSync("idiosol123", 10), name: "Idiosol Admin", mustReset: false };
+
+function loadAdminAccount() {
+  try {
+    const raw = typeof window !== "undefined" ? window.localStorage.getItem(ADMIN_LS_KEY) : null;
+    return raw ? JSON.parse(raw) : DEFAULT_ADMIN;
+  } catch {
+    return DEFAULT_ADMIN;
+  }
+}
+function saveAdminAccount(acc: typeof DEFAULT_ADMIN) {
+  window.localStorage.setItem(ADMIN_LS_KEY, JSON.stringify(acc));
+}
 
 
 export type Session =
-  | { role: "admin"; name: string; email: string }
+| { role: "admin"; name: string; email: string; mustReset: boolean }
   | { role: "staff"; tenantId: string; name: string; email: string; userRole: string };
 
 interface StaffAccount {
@@ -53,6 +65,8 @@ interface AuthValue {
   ready: boolean;
   login: (email: string, password: string) => { ok: true } | { ok: false; error: string };
   logout: () => void;
+  resetAdminPassword: (email: string) => { ok: true; tempPassword: string } | { ok: false; error: string };
+  setNewAdminPassword: (newPassword: string) => void;
 }
 
 const Ctx = createContext<AuthValue | null>(null);
@@ -61,7 +75,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [ready, setReady] = useState(false);
 const { tenants, users } = useStore();
-
+const [adminAccount, setAdminAccount] = useState(DEFAULT_ADMIN);
+useEffect(() => { setAdminAccount(loadAdminAccount()); }, []);
 
   useEffect(() => {
     try {
@@ -88,11 +103,13 @@ const { tenants, users } = useStore();
     ready,
     login(email, password) {
       const e = email.trim().toLowerCase();
-      if (e === ADMIN_ACCOUNT.email.toLowerCase()) {
-        if (password !== ADMIN_ACCOUNT.password) return { ok: false, error: "Incorrect password." };
-        setSession({ role: "admin", name: ADMIN_ACCOUNT.name, email: ADMIN_ACCOUNT.email });
-        return { ok: true };
-      }
+   if (e === adminAccount.email.toLowerCase()) {
+  if (!bcrypt.compareSync(password, adminAccount.passwordHash)) return { ok: false, error: "Incorrect password." };
+  setSession({ role: "admin", name: adminAccount.name, email: adminAccount.email, mustReset: adminAccount.mustReset });
+  return { ok: true };
+
+  
+}
 
       const staff = users.find((u) => u.username?.toLowerCase() === e || u.email?.toLowerCase() === e);
 if (!staff) return { ok: false, error: "No account found." };
@@ -101,10 +118,26 @@ setSession({ role: "staff", tenantId: staff.tenantId, name: staff.name, email: s
 return { ok: true };
 
     },
+    setNewAdminPassword(newPassword: string) {
+  const updated = { ...adminAccount, passwordHash: bcrypt.hashSync(newPassword, 10), mustReset: false };
+  setAdminAccount(updated);
+  saveAdminAccount(updated);
+  if (session?.role === "admin") setSession({ ...session, mustReset: false });
+},
+    resetAdminPassword(email) {
+  if (email.trim().toLowerCase() !== adminAccount.email.toLowerCase()) {
+    return { ok: false, error: "No admin account found for that email." };
+  }
+  const tempPassword = Math.random().toString(36).slice(-8);
+ const updated = { ...adminAccount, passwordHash: bcrypt.hashSync(tempPassword, 10), mustReset: true };
+  setAdminAccount(updated);
+  saveAdminAccount(updated);
+  return { ok: true, tempPassword };
+},
     logout() {
       setSession(null);
     },
-}), [session, ready, users, tenants]);
+}), [session, ready, users, tenants, adminAccount]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

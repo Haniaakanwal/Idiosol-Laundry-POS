@@ -1,5 +1,5 @@
 "use client";
-import bcrypt from "bcryptjs"
+import bcrypt from "bcryptjs";
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { Tenant, TenantUser, ActivityEvent, FeatureKey, PlanId, TenantStatus, UserRole } from "./types";
 import { SEED_TENANTS, seedUsersFor, SEED_ACTIVITY } from "./mock-data";
@@ -11,22 +11,13 @@ interface DB {
   tenants: Tenant[];
   users: TenantUser[];
   activity: ActivityEvent[];
-  taxEnabled: false,
-taxRate: 0,
 }
 
 function seed(): DB {
   const tenants = SEED_TENANTS;
   const users = tenants.flatMap((t) => seedUsersFor(t));
-  
-  return { 
-    tenants, 
-    users, 
-    activity: SEED_ACTIVITY,
-    taxEnabled: false, 
-    taxRate: 0,        
-  };
-} 
+  return { tenants, users, activity: SEED_ACTIVITY };
+}
 
 interface StoreValue extends DB {
   ready: boolean;
@@ -60,37 +51,24 @@ export interface NewTenantInput {
 const StoreCtx = createContext<StoreValue | null>(null);
 
 function logEvent(db: DB, e: Omit<ActivityEvent, "id" | "at">): ActivityEvent {
-  const ev: ActivityEvent = {
-    ...e,
-    id: `a_${db.activity.length + 1}_${e.tenantId}`,
-    at: "2026-07-03T09:00:00", // fixed clock — no Date.now() in prototype seed
-  };
-  return ev;
+  return { ...e, id: `a_${db.activity.length + 1}_${e.tenantId}`, at: "2026-07-03T09:00:00" };
 }
 
 export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [db, setDb] = useState<DB>(() => seed());
   const [ready, setReady] = useState(false);
 
-  // Hydrate from localStorage on mount (client only).
   useEffect(() => {
     try {
       const raw = typeof window !== "undefined" ? window.localStorage.getItem(LS_KEY) : null;
       if (raw) setDb(JSON.parse(raw));
-    } catch {
-      /* ignore corrupt cache */
-    }
+    } catch { /* ignore corrupt cache */ }
     setReady(true);
   }, []);
 
-  // Persist on change.
   useEffect(() => {
     if (!ready) return;
-    try {
-      window.localStorage.setItem(LS_KEY, JSON.stringify(db));
-    } catch {
-      /* quota / disabled storage — ignore for prototype */
-    }
+    try { window.localStorage.setItem(LS_KEY, JSON.stringify(db)); } catch { /* ignore */ }
   }, [db, ready]);
 
   const value = useMemo<StoreValue>(() => {
@@ -101,15 +79,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       ready,
 
       addTenant(input) {
-  const tempPassword = generateTempPassword();
-  const passwordHash = bcrypt.hashSync(tempPassword, 10);
-
- 
-
-  fetch("/api/send-credentials", {
-    method: "POST",
-    body: JSON.stringify({ email: input.email, name: input.contactName, tempPassword, loginUrl: window.location.origin + "/login" }),
-  });
+        const tempPassword = generateTempPassword();
+        const passwordHash = bcrypt.hashSync(tempPassword, 10);
 
         const id = nextClientId();
         const tenant: Tenant = {
@@ -135,26 +106,33 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           taxEnabled: false,
           taxRate: 0,
         };
- const owner: TenantUser = {
-    id: `${id}_u1`,
-    tenantId: id,
-    name: input.contactName,
-    email: input.email,
-    role: "Owner",
-    department: "Management",
-    status: "active",
-    lastActive: "2026-07-03",
-    passwordHash,
-    username: input.email.split("@")[0],
-password: tempPassword,
-moduleOverrides: {},
-  };
-   setDb((prev) => ({
-  ...prev, // <-- Add this line right here!
-  tenants: [tenant, ...prev.tenants],
-  users: [owner, ...prev.users],
-  activity: [logEvent(prev, { tenantId: id, tenantName: input.name, kind: "signup", message: input.trial ? "Provisioned (trial)" : "Provisioned" }), ...prev.activity],
-}));
+
+        fetch("/api/send-credentials", {
+          method: "POST",
+          body: JSON.stringify({ email: input.email, name: input.contactName, tempPassword, loginUrl: `https://${tenant.slug}.laundrypos.app/login` }),
+        });
+
+        const owner: TenantUser = {
+          id: `${id}_u1`,
+          tenantId: id,
+          name: input.contactName,
+          email: input.email,
+          role: "Owner",
+          department: "Management",
+          status: "active",
+          lastActive: "2026-07-03",
+          passwordHash,
+          username: input.email.split("@")[0],
+          password: tempPassword,
+          moduleOverrides: {},
+        };
+
+        setDb((prev) => ({
+          ...prev,
+          tenants: [tenant, ...prev.tenants],
+          users: [owner, ...prev.users],
+          activity: [logEvent(prev, { tenantId: id, tenantName: input.name, kind: "signup", message: input.trial ? "Provisioned (trial)" : "Provisioned" }), ...prev.activity],
+        }));
         return tenant;
       },
 
@@ -204,21 +182,32 @@ moduleOverrides: {},
           }),
         }));
       },
-addUser(tenantId, u: { name: string; username: string; password: string; role: UserRole; department: string }) {
-  const passwordHash = bcrypt.hashSync(u.password, 10);
-  setDb((prev) => {
-    const user: TenantUser = {
-      id: `${tenantId}_u${prev.users.filter(x=>x.tenantId===tenantId).length+1}`,
-      tenantId, name: u.name, username: u.username, email: "", role: u.role,
-      department: u.department, status: "active", lastActive: "—",
-      passwordHash, moduleOverrides: {},password: u.password,
-    };
-    return { ...prev, users: [...prev.users, user], tenants: prev.tenants.map(t=>t.id===tenantId?{...t,seatsUsed:t.seatsUsed+1}:t) };
-  });
-},
-updateUserModules(userId, overrides) {
-  setDb((prev) => ({ ...prev, users: prev.users.map(u => u.id===userId ? {...u, moduleOverrides: {...u.moduleOverrides, ...overrides}} : u) }));
-},
+
+      addUser(tenantId, u) {
+        const passwordHash = bcrypt.hashSync(u.password, 10);
+        setDb((prev) => {
+          const user: TenantUser = {
+            id: `${tenantId}_u${prev.users.filter((x) => x.tenantId === tenantId).length + 1}`,
+            tenantId,
+            name: u.name,
+            username: u.username,
+            email: "",
+            role: u.role,
+            department: u.department,
+            status: "active",
+            lastActive: "—",
+            passwordHash,
+            moduleOverrides: {},
+            password: u.password,
+          };
+          return { ...prev, users: [...prev.users, user], tenants: prev.tenants.map((t) => (t.id === tenantId ? { ...t, seatsUsed: t.seatsUsed + 1 } : t)) };
+        });
+      },
+
+      updateUserModules(userId, overrides) {
+        setDb((prev) => ({ ...prev, users: prev.users.map((u) => (u.id === userId ? { ...u, moduleOverrides: { ...u.moduleOverrides, ...overrides } } : u)) }));
+      },
+
       updateUser(userId, patch) {
         setDb((prev) => ({ ...prev, users: prev.users.map((u) => (u.id === userId ? { ...u, ...patch } : u)) }));
       },
@@ -239,8 +228,7 @@ updateUserModules(userId, overrides) {
       },
 
       reset() {
-        const fresh = seed();
-        setDb(fresh);
+        setDb(seed());
       },
     };
   }, [db, ready]);

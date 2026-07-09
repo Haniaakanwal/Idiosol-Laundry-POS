@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth, ADMIN_ACCOUNT} from "@/lib/auth-store";
-import { Waves, LogIn, ShieldCheck, Store } from "lucide-react";
+import { useAuth, } from "@/lib/auth-store";
+import { Waves, LogIn, Store } from "lucide-react";
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -61,12 +61,7 @@ export default function LoginPage() {
 
           <div className="my-6 flex items-center gap-3 text-xs text-slate-400"><div className="h-px flex-1 bg-slate-200" /> demo accounts <div className="h-px flex-1 bg-slate-200" /></div>
 
-          <button onClick={() => quick(ADMIN_ACCOUNT.email, ADMIN_ACCOUNT.password)} className="mb-3 flex w-full items-center gap-3 rounded-lg border border-slate-200 bg-white p-3 text-left hover:border-brand-300 hover:bg-slate-50">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-violet-50 text-violet-600"><ShieldCheck className="h-5 w-5" /></div>
-            <div className="min-w-0 flex-1"><div className="text-sm font-medium text-slate-900">Platform Admin (Idiosol)</div><div className="truncate text-xs text-slate-400">{ADMIN_ACCOUNT.email}</div></div>
-            <span className="text-xs font-medium text-brand-600">Sign in →</span>
-          </button>
-
+     
           <div className="text-xs font-medium text-slate-400">Client staff (owner logins)</div>
           <div className="mt-2 max-h-52 space-y-2 overflow-y-auto pr-1">
      
