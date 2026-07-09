@@ -91,9 +91,9 @@ function OverviewTab({ t }: { t: any }) {
   const plan = PLAN_MAP[t.plan];
   const onCount = FEATURES.filter((f) => isFeatureOn(t.plan, t.featureOverrides, f.key)).length;
   const trialDays = daysUntil(t.trialEndsAt);
-  const { updateTenant } = useStore();
+ 
 const [taxRate, setTaxRate] = useState(t.taxRate);
-
+ const { updateTenant } = useStore();
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
       <div className="space-y-6 lg:col-span-2">
@@ -148,11 +148,11 @@ const [taxRate, setTaxRate] = useState(t.taxRate);
             <div className="text-lg font-semibold text-slate-900">{plan.name}</div>
             <div className="text-sm text-slate-500">{money(plan.priceMonthly, t.currency)}/mo · {plan.blurb}</div>
           </div>
-          {t.status === "trial" && (
-            <div className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700 ring-1 ring-inset ring-amber-600/20">
-              Trial ends {dateLabel(t.trialEndsAt)}{trialDays !== null ? ` (${trialDays} days)` : ""}
-            </div>
-          )}
+        {t.status === "trial" && (
+  <button onClick={() => updateTenant(t.id, { status: "active", mrr: PLAN_MAP[t.plan].priceMonthly })} className="mt-2 w-full rounded-lg bg-brand-600 py-2 text-sm font-medium text-white">
+    End trial now
+  </button>
+)}
         </Card>
         <Card className="p-5">
           <h3 className="mb-3 text-sm font-semibold text-slate-900">Lifecycle</h3>
