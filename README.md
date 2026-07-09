@@ -49,7 +49,7 @@ modules; an Enterprise client (Marina) sees all 10 — proving the access contro
 - **Per-client overrides** win over the plan — grant an add-on (e.g. WhatsApp on a Professional plan)
   or revoke a module. Overrides are flagged with an amber dot and can be reset to the plan default.
 - Modules were derived directly from the LaundryPOS DDR: POS/Transactions, Order Board, Customers,
-  Business accounts, Services & pricing, Inventory, Payments, VAT Returns, Reports, SMS, WhatsApp,
+  Business accounts, Services & pricing, Inventory, Payments, , Reports, SMS, WhatsApp,
   Promotions, Multi-branch, Arabic/RTL.
 
 ## The tenant POS (`/pos`)
@@ -69,7 +69,7 @@ Dry Clean/Washing/Urgent, statuses Draft→Job Order→Ready→Delivered).
 | **Payments** | Every receipt across orders, filter by method | `payments` |
 | **Reports** | Revenue by day, collections by method, top garments, VAT collected | `reports` |
 | **Counter Cash Report** | Cash-received breakdown (Cash/Card/EFT/ACP) + order sales/discount/tax/grand-total + delivered items over a date range; Generate &amp; Preview / Print | `reports` |
-| **VAT Returns** | Output VAT grouped by tax period | `vat` |
+| **VAT Returns** | Output VAT grouped by tax period |  |
 | **Marketing** | SMS / WhatsApp / Promotions broadcasts to segments (ready orders, balances) | `sms`/`whatsapp`/`promotions` |
 
 **Quick-action menus** (⋯): the POS top bar has a menu (New Order · Order History · Counter Report);

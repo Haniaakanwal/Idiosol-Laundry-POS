@@ -31,7 +31,7 @@ export default function CounterReportPage() {
       totalOrders: inRange.length,
       salesAmount: round(inRange.reduce((s, o) => s + o.sub, 0)),
       discount: round(inRange.reduce((s, o) => s + o.discount, 0)),
-      tax: round(inRange.reduce((s, o) => s + o.vat, 0)),
+      tax: round(inRange.reduce((s, o) => s , 0)),
       grandTotal: round(inRange.reduce((s, o) => s + o.total, 0)),
       received: round(inRange.reduce((s, o) => s + o.paid, 0)),
       credit: round(inRange.reduce((s, o) => s + o.balance, 0)),

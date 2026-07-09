@@ -9,6 +9,8 @@ import { ORDER_STATUSES, OrderStatus, DELIVERY_TYPES } from "@/lib/pos";
 import { Card, Button, inputCls } from "@/components/ui";
 import { OrderStatusBadge } from "@/components/pos/bits";
 import { Search, PlusCircle, Wallet, PackageCheck, Truck, MessageSquare, X, CheckCircle2 } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+
 
 const STATUS_FILTERS: (OrderStatus | "All")[] = ["All", ...ORDER_STATUSES];
 
@@ -18,7 +20,8 @@ export default function OrdersPage() {
   const t = tenants.find((x) => x.id === pos.activeClientId)!;
   const cur = t.currency;
   const all = pos.ordersFor(t.id);
-
+const searchParams = useSearchParams();
+const custFilter = searchParams.get("customerId");
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<OrderStatus | "All">("All");
   const [paid, setPaid] = useState<"All" | "Paid" | "Balance">("All");
@@ -30,6 +33,7 @@ export default function OrdersPage() {
   const [toast, setToast] = useState("");
 
   const rows = useMemo(() => all.filter((o) => {
+    if (custFilter && o.customerId !== custFilter) return false;
     if (status !== "All" && o.status !== status) return false;
     if (paid === "Paid" && o.balance > 0) return false;
     if (paid === "Balance" && o.balance <= 0) return false;

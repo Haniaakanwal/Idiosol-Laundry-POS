@@ -6,7 +6,7 @@ import { usePos } from "@/lib/pos-store";
 import { money } from "@/lib/format";
 import { SERVICE_TYPES, SERVICE_CATEGORIES, ServiceCategory, ServiceType, POSService, TYPE_MULT, newServicePrices } from "@/lib/pos";
 import { Card, Button, Badge, Toggle, Modal, Field, inputCls } from "@/components/ui";
-import { Plus } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 
 export default function ServicesPage() {
   const { tenants } = useStore();
@@ -15,6 +15,8 @@ export default function ServicesPage() {
   const cur = t.currency;
   const services = pos.servicesFor(t.id);
   const [open, setOpen] = useState(false);
+const [q, setQ] = useState("");
+const [editing, setEditing] = useState<POSService | null>(null);
 
   return (
     <>
@@ -23,8 +25,15 @@ export default function ServicesPage() {
         <Button onClick={() => setOpen(true)}><Plus className="h-4 w-4" /> New service</Button>
       </div>
 
+      <Card className="mb-4 p-3">
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search service…" className={`${inputCls} pl-9`} />
+        </div>
+      </Card>
+
       {SERVICE_CATEGORIES.map((cat) => {
-        const items = services.filter((s) => s.category === cat);
+      const items = services.filter((s) => s.category === cat && (!q || s.name.toLowerCase().includes(q.toLowerCase())));
         if (!items.length) return null;
         return (
           <Card key={cat} className="mb-4 overflow-hidden">
@@ -34,6 +43,7 @@ export default function ServicesPage() {
                 <th className="px-5 py-2">Garment</th>
                 {SERVICE_TYPES.map((st) => <th key={st} className="px-3 py-2 text-right">{st}</th>)}
                 <th className="px-4 py-2 text-center">Active</th>
+                <th className="px-4 py-2"></th>
               </tr></thead>
               <tbody className="divide-y divide-slate-100">
                 {items.map((s) => (
@@ -45,6 +55,7 @@ export default function ServicesPage() {
                       </td>
                     ))}
                     <td className="px-4 py-2.5 text-center"><div className="flex justify-center"><Toggle on={s.active} onChange={(v) => pos.updateService(s.id, { active: v })} /></div></td>
+                    <td className="px-4 py-2.5 text-right"><button onClick={() => setEditing(s)} className="text-xs font-medium text-brand-600 hover:underline">Edit</button></td>
                   </tr>
                 ))}
               </tbody>
@@ -54,6 +65,7 @@ export default function ServicesPage() {
       })}
 
       <NewServiceModal open={open} onClose={() => setOpen(false)} clientId={t.id} cur={cur} />
+        {editing && <EditServiceModal service={editing} onClose={() => setEditing(null)} />}
     </>
   );
 }
@@ -92,6 +104,25 @@ function NewServiceModal({ open, onClose, clientId, cur }: { open: boolean; onCl
           pos.addService({ clientId, name, nameArabic, category, prices: newServicePrices(base), active: true });
           onClose(); setName(""); setNameArabic(""); setBase(5);
         }}>Add service</Button>
+      </div>
+    </Modal>
+  );
+}
+function EditServiceModal({ service, onClose }: { service: POSService; onClose: () => void }) {
+  const pos = usePos();
+  const [name, setName] = useState(service.name);
+  const [nameArabic, setNameArabic] = useState(service.nameArabic ?? "");
+  const [category, setCategory] = useState<ServiceCategory>(service.category);
+  return (
+    <Modal open onClose={onClose} title={`Edit ${service.name}`}>
+      <div className="space-y-4">
+        <Field label="Name"><input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} /></Field>
+        <Field label="Arabic name"><input className={inputCls} dir="rtl" value={nameArabic} onChange={(e) => setNameArabic(e.target.value)} /></Field>
+        <Field label="Category"><select className={inputCls} value={category} onChange={(e) => setCategory(e.target.value as ServiceCategory)}>{SERVICE_CATEGORIES.map((c) => <option key={c}>{c}</option>)}</select></Field>
+      </div>
+      <div className="mt-5 flex justify-end gap-2 border-t border-slate-100 pt-4">
+        <Button variant="secondary" onClick={onClose}>Cancel</Button>
+        <Button onClick={() => { pos.updateService(service.id, { name, nameArabic, category }); onClose(); }}>Save</Button>
       </div>
     </Modal>
   );

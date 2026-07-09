@@ -17,7 +17,7 @@ export default function ReportsPage() {
   const gross = orders.reduce((s, o) => s + o.total, 0);
   const collected = orders.reduce((s, o) => s + o.paid, 0);
   const outstanding = orders.reduce((s, o) => s + o.balance, 0);
-  const vat = orders.reduce((s, o) => s + o.vat, 0);
+
 
   // by payment type
   const byType = PAYMENT_TYPES.map((pt) => ({ pt, amt: orders.flatMap((o) => o.payments).filter((p) => p.type === pt).reduce((s, p) => s + p.amount, 0) }));
@@ -43,7 +43,7 @@ export default function ReportsPage() {
         <Stat label="Gross sales" value={money(gross, cur)} />
         <Stat label="Collected" value={money(collected, cur)} tone="text-emerald-600" />
         <Stat label="Outstanding" value={money(outstanding, cur)} tone="text-amber-600" />
-        <Stat label="VAT collected" value={money(vat, cur)} />
+    
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">

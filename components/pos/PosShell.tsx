@@ -21,11 +21,9 @@ const NAV: { href: string; label: string; icon: any; feature?: FeatureKey | Feat
   { href: "/pos/new", label: "New Order", icon: PlusCircle, feature: "pos" },
   { href: "/pos/orders", label: "Orders", icon: ClipboardList, feature: "orders" },
   { href: "/pos/customers", label: "Customers", icon: Users, feature: "customers" },
-  { href: "/pos/business", label: "Business Accounts", icon: Building2, feature: "business" },
   { href: "/pos/services", label: "Services & Pricing", icon: Shirt, feature: "services" },
   { href: "/pos/payments", label: "Payments", icon: CreditCard, feature: "payments" },
   { href: "/pos/reports", label: "Reports", icon: BarChart3, feature: "reports" },
-  { href: "/pos/vat", label: "VAT Returns", icon: Receipt, feature: "vat" },
   { href: "/pos/marketing", label: "Marketing", icon: Megaphone, feature: ["sms", "whatsapp", "promotions"] },
   { href: "/pos/users", label: "Users", icon: Users2 },
 ];

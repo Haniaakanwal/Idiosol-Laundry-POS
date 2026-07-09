@@ -50,7 +50,6 @@ export function isUrgentType(t: ServiceType): boolean {
   return t.includes("Urgent");
 }
 
-export const VAT_RATE = 5; // Gulf VAT %
 
 export interface POSCustomer {
   id: string;
@@ -112,8 +111,6 @@ export interface POSOrder {
   items: POSOrderItem[];
   sub: number;
   discount: number;
-  vatRate: number;
-  vat: number;
 taxRate?: number; 
   tax?: number;
   total: number;
@@ -133,20 +130,18 @@ export function lineTotal(unitPrice: number, qty: number): number {
 
 export interface Totals {
   sub: number;
-  vat: number;
   Tax: number;
   total: number;
   balance: number;
 }
 
-export function computeTotals(items: POSOrderItem[], discount: number, paid: number, vatRate = VAT_RATE, TaxRate = 0): Totals {
+export function computeTotals(items: POSOrderItem[], discount: number, paid: number, TaxRate = 0): Totals {
   const sub = items.reduce((s, i) => s + i.lineTotal, 0);
   const taxable = Math.max(0, sub - discount);
-  const vat = Math.round(taxable * (vatRate / 100) * 100) / 100;
   const Tax = Math.round(taxable * (TaxRate / 100) * 100) / 100;
-  const total = Math.round((taxable + vat + Tax) * 100) / 100;
+  const total = Math.round((taxable + Tax) * 100) / 100;
   const balance = Math.round((total - paid) * 100) / 100;
-  return { sub: Math.round(sub * 100) / 100, vat, Tax, total, balance };
+  return { sub: Math.round(sub * 100) / 100, Tax, total, balance };
 }
 
 export const STATUS_FLOW: Record<OrderStatus, { next?: OrderStatus; label: string; tone: string }> = {
@@ -297,8 +292,6 @@ export function seedOrders(clientId: string, services: POSService[], customers: 
       items,
       sub: totals.sub,
       discount,
-      vatRate: VAT_RATE,
-      vat: totals.vat,
       total: totals.total,
       paid,
       balance: totals.balance,
@@ -309,4 +302,14 @@ export function seedOrders(clientId: string, services: POSService[], customers: 
     });
   }
   return orders;
+}
+export interface WhatsAppMessage {
+  id: string;
+  clientId: string;
+  customerId: string;
+  orderId?: string;
+  text: string;
+  to: string;
+  sentAt: string;
+  status: "sent" | "failed";
 }

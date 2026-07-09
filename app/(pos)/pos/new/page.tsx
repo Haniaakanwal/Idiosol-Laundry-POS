@@ -8,7 +8,7 @@ import { money } from "@/lib/format";
 import {
   SERVICE_TYPES, HANG_FOLD, DELIVERY_TYPES, PAYMENT_TYPES, PLACEMENTS,
   ServiceType, HangFold, DeliveryType, PaymentType, Placement, 
-  POSOrderItem, POSCustomer, POSService, lineTotal, computeTotals, isUrgentType, VAT_RATE,
+  POSOrderItem, POSCustomer, POSService, lineTotal, computeTotals, isUrgentType,
 } from "@/lib/pos";
 import { Card, Button, Field, inputCls, Modal, Badge } from "@/components/ui";
 import { Search, UserPlus, Trash2, Plus, Minus, X, ArrowRight, ArrowLeft, ShoppingCart } from "lucide-react";
@@ -45,7 +45,7 @@ export default function NewOrderPage() {
   const [notes, setNotes] = useState("");
 
 const taxRate = t.taxEnabled ? t.taxRate : 0;
-const totals = useMemo(() => computeTotals(items, discount, payAmount, VAT_RATE, taxRate), [items, discount, payAmount, taxRate]);
+const totals = useMemo(() => computeTotals(items, discount, payAmount,  taxRate), [items, discount, payAmount, taxRate]);
   const grid = services.filter((s) => !q || s.name.toLowerCase().includes(q.toLowerCase()));
 
   // qty already in cart for a garment at the active tab
@@ -101,7 +101,7 @@ payment: payAmount > 0 ? { type: payType, amount: payAmount } : undefined, taxRa
           <h1 className="text-xl font-semibold text-slate-900">New order</h1>
           <Badge tone="slate">Draft</Badge>
         </div>
-        <Badge tone="slate">VAT {VAT_RATE}% · {cur}</Badge>
+    
       </div>
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_380px]">
@@ -237,7 +237,7 @@ payment: payAmount > 0 ? { type: payType, amount: payAmount } : undefined, taxRa
                     )}
                   </div>
 
-                <TotalsRow label="Total" value={money(totals.sub + totals.vat + totals.Tax, cur)} big />
+                <TotalsRow label="Total" value={money(totals.sub + totals.Tax, cur)} big />
                   <Button className="mt-3 w-full" disabled={!canNext} onClick={() => { setPayAmount(0); setStep("pay"); }}>
                     Next: Payment <ArrowRight className="h-4 w-4" />
                   </Button>
@@ -252,9 +252,9 @@ payment: payAmount > 0 ? { type: payType, amount: payAmount } : undefined, taxRa
                       <input type="number" min={0} value={discount} onChange={(e) => setDiscount(Math.max(0, parseFloat(e.target.value) || 0))} className="w-20 rounded-md border border-slate-300 px-2 py-1 text-right text-sm" />
                     
                     </div>
-                    <TotalsRow label={`VAT ${VAT_RATE}%`} value={money(totals.vat, cur)} />
+                   
                      {taxRate > 0 && <TotalsRow label={`Tax ${taxRate}%`} value={money(totals.Tax, cur)} />}
-                   <TotalsRow label="Total" value={money(totals.sub + totals.vat + totals.Tax - discount, cur)} big />
+                   <TotalsRow label="Total" value={money(totals.sub + totals.Tax - discount, cur)} big />
                   </div>
                   <div className="rounded-lg bg-slate-50 p-3">
                     <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400">Take payment</div>
@@ -263,7 +263,7 @@ payment: payAmount > 0 ? { type: payType, amount: payAmount } : undefined, taxRa
                       <input type="number" min={0} value={payAmount} onChange={(e) => setPayAmount(Math.max(0, parseFloat(e.target.value) || 0))} className={`${inputCls} py-1.5 text-sm`} placeholder="0" />
                     </div>
                     <div className="mt-2 flex items-center justify-between">
-                      <button onClick={() => setPayAmount(totals.total)} className="text-[11px] font-medium text-brand-600 hover:underline">Pay full</button>
+                      <button onClick={() => setPayAmount(Math.round(totals.total))} className="text-[11px] font-medium text-brand-600 hover:underline">Pay full</button>
                       <span className="text-sm">Balance <b className={totals.balance > 0 ? "text-amber-600" : "text-emerald-600"}>{money(totals.balance, cur)}</b></span>
                     </div>
                   </div>

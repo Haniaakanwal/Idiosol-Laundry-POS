@@ -16,7 +16,7 @@ import {
   seedCustomers,
   seedOrders,
   computeTotals,
-  VAT_RATE,
+  WhatsAppMessage
 } from "./pos";
 
 const LS_KEY = "laundry-saas-pos:v1";
@@ -26,7 +26,7 @@ interface PosDB {
   services: POSService[];
   orders: POSOrder[];
   activeClientId: string | null;
-
+  messages: WhatsAppMessage[];
 }
 
 function seed(): PosDB {
@@ -40,7 +40,7 @@ function seed(): PosDB {
     customers.push(...cust);
     orders.push(...seedOrders(t.id, svc, cust));
   }
-return { customers, services, orders, activeClientId: null, };
+return { customers, services, orders, activeClientId: null, messages: [] };
 }
 
 export interface NewOrderInput {
@@ -68,7 +68,8 @@ interface PosStoreValue extends PosDB {
   ordersFor: (clientId: string) => POSOrder[];
   orderById: (id: string) => POSOrder | undefined;
   addCustomer: (c: Omit<POSCustomer, "id" | "balance" | "createdAt">) => POSCustomer;
-
+sendWhatsApp: (clientId: string, customerId: string, to: string, text: string, orderId?: string) => Promise<boolean>;
+messagesFor: (customerId: string) => WhatsAppMessage[];
   updateCustomer: (id: string, patch: Partial<POSCustomer>) => void;
   addService: (s: Omit<POSService, "id">) => void;
   updateService: (id: string, patch: Partial<POSService>) => void;
@@ -140,7 +141,14 @@ export function PosStoreProvider({ children }: { children: React.ReactNode }) {
       updateCustomer(id, patch) {
         setDb((prev) => ({ ...prev, customers: prev.customers.map((c) => (c.id === id ? { ...c, ...patch } : c)) }));
       },
-
+async sendWhatsApp(clientId, customerId, to, text, orderId) {
+  const res = await fetch("/api/send-whatsapp", { method: "POST", body: JSON.stringify({ to, text }) });
+  const ok = res.ok;
+  const msg: WhatsAppMessage = { id: `wa_${Date.now()}`, clientId, customerId, orderId, text, to, sentAt: new Date().toISOString(), status: ok ? "sent" : "failed" };
+  setDb((prev) => ({ ...prev, messages: [msg, ...prev.messages] }));
+  return ok;
+},
+messagesFor(customerId) { return db.messages.filter((m) => m.customerId === customerId); },
       addService(s) {
         const id = `${s.clientId}_svc_${db.services.filter((x) => x.clientId === s.clientId).length + 1}`;
         setDb((prev) => ({ ...prev, services: [...prev.services, { ...s, id }] }));
@@ -156,7 +164,7 @@ export function PosStoreProvider({ children }: { children: React.ReactNode }) {
         
         const id = `${o.clientId}_ord_${seq}`;
     
-const totals = computeTotals(o.items, o.discount, o.payment?.amount ?? 0, VAT_RATE, o.taxRate ?? 0);
+const totals = computeTotals(o.items, o.discount, o.payment?.amount ?? 0,  o.taxRate ?? 0);
         const payments: POSPayment[] = o.payment && o.payment.amount > 0
           ? [{ id: `${id}_p1`, date: "2026-07-03", type: o.payment.type, amount: o.payment.amount, ref: `RCPT-${seq}` }]
           : [];
@@ -176,8 +184,6 @@ const totals = computeTotals(o.items, o.discount, o.payment?.amount ?? 0, VAT_RA
           items: o.items,
           sub: totals.sub,
           discount: o.discount,
-          vatRate: VAT_RATE,
-          vat: totals.vat,
       taxRate: o.taxRate ?? 0,
       tax: totals.Tax,
           total: totals.total,

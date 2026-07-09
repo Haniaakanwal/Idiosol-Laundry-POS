@@ -58,11 +58,15 @@ export default function OrderDetail() {
             </button>
             {menu && (
               <div className="absolute right-0 top-11 z-30 w-48 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
-                <MenuItem icon={Wallet} label="Add payment" disabled={o.balance <= 0} onClick={() => { setMenu(false); setAmt(o.balance); setPayOpen(true); }} />
+                <MenuItem icon={Wallet} label="Add payment" disabled={o.balance <= 0} onClick={() => { setMenu(false); setAmt(Math.round(o.balance)); setPayOpen(true); }} />
                 <MenuItem icon={Truck} label="Deliver order" disabled={o.status === "Delivered" || o.status === "Cancelled"} onClick={() => { setMenu(false); pos.setOrderStatus(o.id, "Delivered"); flash("Order marked delivered"); }} />
                 <MenuItem icon={Printer} label="Print order" onClick={() => { setMenu(false); window.print(); }} />
                 <MenuItem icon={MessageSquare} label="Custom SMS" onClick={() => { setMenu(false); flash(`SMS queued to ${o.customerName}`); }} />
-                <MenuItem icon={Send} label="Send order (WhatsApp)" onClick={() => { setMenu(false); flash(`Order ${o.reference} sent to ${o.customerPhone}`); }} />
+       <MenuItem icon={Send} label="Send order (WhatsApp)" onClick={async () => {
+  setMenu(false);
+  const ok = await pos.sendWhatsApp(t.id, o.customerId, o.customerPhone, `Your order ${o.reference} update: ${o.status}`, o.id);
+  flash(ok ? `Order ${o.reference} sent to ${o.customerPhone}` : "Failed to send WhatsApp message");
+}} />
               </div>
             )}
           </div>
@@ -98,7 +102,7 @@ export default function OrderDetail() {
           <Card className="overflow-hidden">
             <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3">
               <h2 className="text-sm font-semibold text-slate-900">Payments</h2>
-              {o.balance > 0 && <Button size="sm" onClick={() => { setAmt(o.balance); setPayOpen(true); }}>Take payment</Button>}
+              {o.balance > 0 && <Button size="sm" onClick={() => { setAmt(Math.round(o.balance)); setPayOpen(true); }}>Take payment</Button>}
             </div>
             {o.payments.length === 0 ? <p className="px-5 py-6 text-sm text-slate-400">No payments recorded.</p> : (
               <ul className="divide-y divide-slate-100">
@@ -125,7 +129,7 @@ export default function OrderDetail() {
             <dl className="space-y-2 text-sm">
               <Row label="Subtotal" value={money(o.sub, cur)} />
               <Row label="Discount" value={`- ${money(o.discount, cur)}`} />
-              <Row label={`VAT (${o.vatRate}%)`} value={money(o.vat, cur)} />
+            
             {((o as any).taxRate) > 0 && <Row label={`Tax (${(o as any).taxRate}%)`} value={money((o as any).tax, cur)} />}
               <div className="flex justify-between border-t border-slate-100 pt-2 text-base font-semibold text-slate-900"><span>Total</span><span>{money(o.total, cur)}</span></div>
               <Row label="Paid" value={money(o.paid, cur)} />

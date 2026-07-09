@@ -8,12 +8,10 @@ const TABLES = [
   { name: "clients", note: "The tenant registry — one row per laundry business", cols: ["id (clientId)", "name", "slug", "plan", "status", "locale", "currency"], tenantScoped: false },
   { name: "users", note: "Staff accounts (was: User Accounts)", cols: ["id", "clientId", "name", "email", "role", "department", "status"], tenantScoped: true },
   { name: "customers", note: "Individual customers (was: Customers)", cols: ["id", "clientId", "fullName", "phone", "balance", "isBlacklist"], tenantScoped: true },
-  { name: "businesses", note: "Corporate accounts (was: Business)", cols: ["id", "clientId", "company", "contact", "amountBalance"], tenantScoped: true },
   { name: "services", note: "Service catalog + prices (was: Services / Services_Price)", cols: ["id", "clientId", "name", "category", "price", "nameArabic"], tenantScoped: true },
   { name: "transactions", note: "POS orders / invoices (was: Transaction)", cols: ["id", "clientId", "reference", "customerId", "amountTotal", "status", "deliveryDate"], tenantScoped: true },
   { name: "order_items", note: "Line items (was: Items)", cols: ["id", "clientId", "transactionId", "serviceId", "qty", "price", "urgent"], tenantScoped: true },
   { name: "payments", note: "Payment capture (was: Payments)", cols: ["id", "clientId", "transactionId", "type", "amount", "refNumber"], tenantScoped: true },
-  { name: "vat_returns", note: "Tax periods (was: VAT Returns)", cols: ["id", "clientId", "dateFrom", "dateTo", "amount", "status"], tenantScoped: true },
 ];
 
 export default function DataModelPage() {

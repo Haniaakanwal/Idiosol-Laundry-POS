@@ -21,11 +21,9 @@ export type FeatureKey =
   | "pos" // Point of Sale — Transaction / Items
   | "orders" // Order tracking board — Dashboard_Orders
   | "customers" // Individual customers — Customers
-  | "business" // Corporate / business accounts — Business
   | "services" // Service catalog & price matrix — Services / Service Types / Services_Price
   | "inventory" // Stock items — Items
   | "payments" // Payment capture & reconciliation — Payments
-  | "vat" // VAT returns — VAT Returns
   | "reports" // Dashboards & summaries
   | "sms" // SMS templates & campaigns — SMS_TEMPLATES
   | "whatsapp" // WhatsApp messaging — WHATSAPP_LOGS
