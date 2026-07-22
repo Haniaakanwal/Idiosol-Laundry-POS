@@ -69,7 +69,7 @@ interface PosStoreValue extends PosDB {
   servicesFor: (clientId: string) => POSService[];
   ordersFor: (clientId: string) => POSOrder[];
   orderById: (id: string) => POSOrder | undefined;
-  addCustomer: (c: Omit<POSCustomer, "id" | "balance" | "createdAt">) => POSCustomer;
+addCustomer: (c: Omit<POSCustomer, "id" | "balance" | "createdAt" | "creditBalance">) => POSCustomer;
 sendWhatsApp: (clientId: string, customerId: string, to: string, text: string, orderId?: string) => Promise<boolean>;
 messagesFor: (customerId: string) => WhatsAppMessage[];
   updateCustomer: (id: string, patch: Partial<POSCustomer>) => void;
@@ -136,9 +136,9 @@ useEffect(() => {
       ordersFor: (clientId) => db.orders.filter((o) => o.clientId === clientId),
       orderById: (id) => db.orders.find((o) => o.id === id),
 
-      addCustomer(c) {
+   addCustomer(c) {
         const id = `${c.clientId}_cust_${db.customers.filter((x) => x.clientId === c.clientId).length + 1}_${c.phone.length}`;
-        const customer: POSCustomer = { ...c, id, balance: 0, createdAt: "2026-07-03" };
+        const customer: POSCustomer = { ...c, id, balance: 0, createdAt: "2026-07-03", creditBalance: 0 };
         setDb((prev) => ({ ...prev, customers: [customer, ...prev.customers] }));
         return customer;
       },
