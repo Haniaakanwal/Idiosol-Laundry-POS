@@ -8,7 +8,9 @@
 
 export const DELIVERY_TYPES = ["Pickup", "Home Delivery"] as const;
 export const HANG_FOLD = ["Fold", "Hang"] as const;
-export const PAYMENT_TYPES = ["Cash", "Card", "EFT"] as const;
+export const PAYMENT_TYPES = ["Cash", "Card", "EFT", "Credit"] as const;
+export const CREDIT_ADD_METHODS = ["Cash", "Card", "EFT"] as const;
+export type CreditAddMethod = (typeof CREDIT_ADD_METHODS)[number];
 
 // The six counter tabs — these are the Services table price columns:
 // price_washAndIron / price_Ironing / price_dryClean / price_dryCleanUrgent /
@@ -51,6 +53,13 @@ export function isUrgentType(t: ServiceType): boolean {
 }
 
 
+export interface CreditLog {
+  id: string;
+  date: string;
+  type: CreditAddMethod;
+  amount: number;
+}
+
 export interface POSCustomer {
   id: string;
   clientId: string;
@@ -61,6 +70,8 @@ export interface POSCustomer {
   isBlacklist: boolean;
   note?: string;
   createdAt: string;
+  creditBalance: number; // money customer overpaid, held as credit
+  creditLogs?: CreditLog[]; // history of how credit was added (Cash/Card/EFT)
 }
 
 export interface POSService {
@@ -240,6 +251,7 @@ export function seedCustomers(clientId: string): POSCustomer[] {
     balance: i % 4 === 0 ? Math.round((i * 13.5) % 240) : 0,
     isBlacklist: i === 9,
     createdAt: "2025-11-01",
+    creditBalance: 0,
     note: i === 9 ? "Repeated chargebacks" : undefined,
   }));
 }

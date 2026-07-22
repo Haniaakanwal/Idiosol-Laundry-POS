@@ -24,7 +24,6 @@ const NAV = [
   { href: "/users", label: "Users", icon: Users },
   { href: "/plans", label: "Plans & Billing", icon: CreditCard },
   { href: "/modules", label: "POS Modules", icon: Boxes },
-  { href: "/data-model", label: "Data Model", icon: Database },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 

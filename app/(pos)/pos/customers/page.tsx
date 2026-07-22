@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import { useStore } from "@/lib/store";
 import { usePos } from "@/lib/pos-store";
 import { money } from "@/lib/format";
-import { POSCustomer } from "@/lib/pos";
+import { POSCustomer, CREDIT_ADD_METHODS, CreditAddMethod } from "@/lib/pos";
 import { Card, Button, Badge, Modal, Field, inputCls, Toggle } from "@/components/ui";
 import { Search, UserPlus, ShoppingBag } from "lucide-react";
 
@@ -21,6 +21,7 @@ export default function CustomersPage() {
   const [open, setOpen] = useState(false);
   const [edit, setEdit] = useState<POSCustomer | null>(null);
 const [expanded, setExpanded] = useState<string | null>(null);
+const [creditFor, setCreditFor] = useState<POSCustomer | null>(null);
   const rows = useMemo(() => customers.filter((c) => !q || c.fullName.toLowerCase().includes(q.toLowerCase()) || c.phone.includes(q)), [customers, q]);
   const orderCount = (id: string) => orders.filter((o) => o.customerId === id).length;
 
@@ -41,7 +42,7 @@ const [expanded, setExpanded] = useState<string | null>(null);
       <Card className="overflow-hidden">
         <table className="w-full text-sm">
           <thead><tr className="border-b border-slate-100 bg-slate-50/60 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-            <th className="px-5 py-3">Name</th><th className="px-4 py-3">Phone</th><th className="px-4 py-3">Orders</th><th className="px-4 py-3">Balance</th><th className="px-4 py-3">Flags</th><th className="px-4 py-3"></th>
+            <th className="px-5 py-3">Name</th><th className="px-4 py-3">Phone</th><th className="px-4 py-3">Orders</th><th className="px-4 py-3">Balance</th><th className="px-4 py-3">Credit</th><th className="px-4 py-3">Flags</th><th className="px-4 py-3"></th>
           </tr></thead>
           <tbody className="divide-y divide-slate-100">
             {rows.map((c) => (
@@ -54,18 +55,69 @@ const [expanded, setExpanded] = useState<string | null>(null);
   </Link>
 </td>
                 <td className="px-4 py-3">{c.balance > 0 ? <span className="font-medium text-amber-600">{money(c.balance, cur)}</span> : <span className="text-slate-400">—</span>}</td>
+<td className="px-4 py-3">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setCreditFor(c); }}
+                    className={c.creditBalance > 0 ? "font-medium text-emerald-600 hover:underline" : "text-slate-400 hover:text-emerald-600 hover:underline"}
+                  >
+                    {c.creditBalance > 0 ? money(c.creditBalance, cur) : "+ Add"}
+                  </button>
+                </td>
                 <td className="px-4 py-3">{c.isBlacklist && <Badge tone="rose">blacklist</Badge>}</td>
                 <td className="px-4 py-3 text-right"><button onClick={() => setEdit(c)} className="text-xs font-medium text-brand-600 hover:underline">Edit</button></td>
               </tr>
             ))}
-            {rows.length === 0 && <tr><td colSpan={6} className="px-5 py-12 text-center text-sm text-slate-400">No customers match.</td></tr>}
+            {rows.length === 0 && <tr><td colSpan={7} className="px-5 py-12 text-center text-sm text-slate-400">No customers match.</td></tr>}
           </tbody>
         </table>
       </Card>
 
-      <CustomerModal open={open} onClose={() => setOpen(false)} clientId={t.id} />
+<CustomerModal open={open} onClose={() => setOpen(false)} clientId={t.id} />
       {edit && <EditCustomerModal customer={edit} onClose={() => setEdit(null)} />}
+      {creditFor && <AddCreditModal customer={creditFor} cur={cur} onClose={() => setCreditFor(null)} />}
     </>
+  );
+}
+
+function AddCreditModal({ customer, cur, onClose }: { customer: POSCustomer; cur: string; onClose: () => void }) {
+  const pos = usePos();
+  const [amount, setAmount] = useState(0);
+  const [method, setMethod] = useState<CreditAddMethod>("Cash");
+  const logs = customer.creditLogs ?? [];
+  return (
+    <Modal open onClose={onClose} title={`Add credit · ${customer.fullName}`}>
+      <div className="space-y-4">
+        <div className="rounded-lg bg-slate-50 px-4 py-3 text-sm">
+          <span className="text-slate-500">Current credit </span>
+          <span className="font-semibold text-slate-900">{money(customer.creditBalance, cur)}</span>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <Field label="Paid via">
+            <select className={inputCls} value={method} onChange={(e) => setMethod(e.target.value as CreditAddMethod)}>
+              {CREDIT_ADD_METHODS.map((x) => <option key={x}>{x}</option>)}
+            </select>
+          </Field>
+          <Field label="Amount"><input type="number" min={0} className={inputCls} value={amount} onChange={(e) => setAmount(Math.max(0, parseFloat(e.target.value) || 0))} /></Field>
+        </div>
+        {logs.length > 0 && (
+          <div>
+            <div className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">History</div>
+            <ul className="max-h-32 divide-y divide-slate-100 overflow-y-auto rounded-lg border border-slate-100">
+              {logs.map((l) => (
+                <li key={l.id} className="flex items-center justify-between px-3 py-1.5 text-sm">
+                  <span className="text-slate-500">{l.date} · {l.type}</span>
+                  <span className="font-medium text-slate-900">{money(l.amount, cur)}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+      <div className="mt-5 flex justify-end gap-2 border-t border-slate-100 pt-4">
+        <Button variant="secondary" onClick={onClose}>Cancel</Button>
+        <Button disabled={amount <= 0} onClick={() => { pos.addCredit(customer.id, amount, method); onClose(); }}>Add {money(amount, cur)}</Button>
+      </div>
+    </Modal>
   );
 }
 

@@ -256,6 +256,22 @@ payment: payAmount > 0 ? { type: payType, amount: payAmount } : undefined, taxRa
                      {taxRate > 0 && <TotalsRow label={`Tax ${taxRate}%`} value={money(totals.Tax, cur)} />}
                    <TotalsRow label="Total" value={money(totals.sub + totals.Tax - discount, cur)} big />
                   </div>
+                  {customer && customer.creditBalance > 0 && (
+  <div className="mb-2 flex items-center justify-between rounded-lg bg-emerald-50 px-3 py-2 text-sm">
+    <span className="text-emerald-700">Available credit: {money(customer.creditBalance, cur)}</span>
+ <button
+      onClick={() => {
+        setPayType("Credit");
+        setPayAmount(Math.min(customer.creditBalance, totals.total));
+      }}
+      className="text-xs font-medium text-emerald-700 hover:underline"
+    >
+      Apply credit
+    </button>
+  </div>
+)}
+
+<div className="rounded-lg bg-slate-50 p-3"></div>
                   <div className="rounded-lg bg-slate-50 p-3">
                     <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400">Take payment</div>
                     <div className="grid grid-cols-2 gap-2">
@@ -264,7 +280,13 @@ payment: payAmount > 0 ? { type: payType, amount: payAmount } : undefined, taxRa
                     </div>
                     <div className="mt-2 flex items-center justify-between">
                       <button onClick={() => setPayAmount(Math.round(totals.total))} className="text-[11px] font-medium text-brand-600 hover:underline">Pay full</button>
-                      <span className="text-sm">Balance <b className={totals.balance > 0 ? "text-amber-600" : "text-emerald-600"}>{money(totals.balance, cur)}</b></span>
+                      {payAmount > totals.total ? (
+                        <span className="text-sm text-emerald-600">
+                          Extra {money(Math.round((payAmount - totals.total) * 100) / 100, cur)} → saved as credit
+                        </span>
+                      ) : (
+                        <span className="text-sm">Balance <b className={totals.balance > 0 ? "text-amber-600" : "text-emerald-600"}>{money(totals.balance, cur)}</b></span>
+                      )}
                     </div>
                   </div>
                   <div className="mt-3 flex gap-2">

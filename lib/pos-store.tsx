@@ -15,8 +15,10 @@ import {
   seedServices,
   seedCustomers,
   seedOrders,
-  computeTotals,
-  WhatsAppMessage
+computeTotals,
+  WhatsAppMessage,
+  CreditLog,
+  CreditAddMethod
 } from "./pos";
 
 const LS_KEY = "laundry-saas-pos:v1";
@@ -79,6 +81,9 @@ messagesFor: (customerId: string) => WhatsAppMessage[];
   bulkStatus: (ids: string[], status: OrderStatus) => void;
   bulkPay: (ids: string[], type: PaymentType) => void;
   reset: () => void;
+  useCredit: (customerId: string, amount: number) => void;
+addCredit: (customerId: string, amount: number, type: CreditAddMethod) => void;
+ 
 }
 
 const Ctx = createContext<PosStoreValue | null>(null);
@@ -87,13 +92,13 @@ export function PosStoreProvider({ children }: { children: React.ReactNode }) {
   const [db, setDb] = useState<PosDB>(() => seed());
   const [ready, setReady] = useState(false);
 
-  useEffect(() => {
+useEffect(() => {
     try {
       const raw = typeof window !== "undefined" ? window.localStorage.getItem(LS_KEY) : null;
-    if (raw) {
-  const parsed = JSON.parse(raw);
-
-}
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        setDb(parsed);
+      }
     } catch {
       /* ignore */
     }
@@ -157,16 +162,24 @@ messagesFor(customerId) { return db.messages.filter((m) => m.customerId === cust
       updateService(id, patch) {
         setDb((prev) => ({ ...prev, services: prev.services.map((s) => (s.id === id ? { ...s, ...patch } : s)) }));
       },
-
-      createOrder(o) {
+createOrder(o) {
         const existing = db.orders.filter((x) => x.clientId === o.clientId);
         const seq = 1040 + existing.length + 1;
-        
+
         const id = `${o.clientId}_ord_${seq}`;
-    
-const totals = computeTotals(o.items, o.discount, o.payment?.amount ?? 0,  o.taxRate ?? 0);
-        const payments: POSPayment[] = o.payment && o.payment.amount > 0
-          ? [{ id: `${id}_p1`, date: "2026-07-03", type: o.payment.type, amount: o.payment.amount, ref: `RCPT-${seq}` }]
+
+        const customer = db.customers.find((c) => c.id === o.customerId);
+        const isCredit = o.payment?.type === "Credit";
+        const rawAmount = o.payment?.amount ?? 0;
+        const payAmount = isCredit ? Math.min(rawAmount, customer?.creditBalance ?? 0) : rawAmount;
+
+        const totals = computeTotals(o.items, o.discount, 0, o.taxRate ?? 0);
+        const applied = Math.min(payAmount, totals.total);   // goes to this order
+        const overpay = isCredit ? 0 : Math.max(0, payAmount - totals.total); // excess -> credit (cash/card only)
+        const balance = Math.round((totals.total - applied) * 100) / 100;
+
+        const payments: POSPayment[] = payAmount > 0
+          ? [{ id: `${id}_p1`, date: "2026-07-03", type: o.payment!.type, amount: payAmount, ref: `RCPT-${seq}` }]
           : [];
         const order: POSOrder = {
           id,
@@ -187,40 +200,71 @@ const totals = computeTotals(o.items, o.discount, o.payment?.amount ?? 0,  o.tax
       taxRate: o.taxRate ?? 0,
       tax: totals.Tax,
           total: totals.total,
-          paid: o.payment?.amount ?? 0,
-          balance: totals.balance,
+          paid: applied,
+          balance,
           payments,
           salesman: o.salesman,
           notes: o.notes,
           createdAt: "2026-07-03",
         };
-        setDb((prev) => ({
+   setDb((prev) => ({
           ...prev,
           orders: [order, ...prev.orders],
-          customers: prev.customers.map((c) => (c.id === o.customerId ? { ...c, balance: Math.round((c.balance + totals.balance) * 100) / 100 } : c)),
+          customers: prev.customers.map((c) => {
+            if (c.id !== o.customerId) return c;
+            const creditDelta = isCredit ? -applied : overpay;
+            return { ...c, balance: Math.round((c.balance + balance) * 100) / 100, creditBalance: Math.round((c.creditBalance + creditDelta) * 100) / 100 };
+          }),
         }));
         return order;
       },
-
       setOrderStatus(id, status) {
         setDb((prev) => ({ ...prev, orders: prev.orders.map((o) => (o.id === id ? { ...o, status } : o)) }));
       },
+addOrderPayment(orderId, type, amount) {
+  setDb((prev) => {
+    const order = prev.orders.find((o) => o.id === orderId);
+    if (!order) return prev;
+    const customer = prev.customers.find((c) => c.id === order.customerId);
+    const isCredit = type === "Credit";
+    // paying "with Credit" can never exceed what the customer actually has
+    const payAmount = isCredit ? Math.min(amount, customer?.creditBalance ?? 0) : amount;
 
-      addOrderPayment(orderId, type, amount) {
-        setDb((prev) => {
-          const order = prev.orders.find((o) => o.id === orderId);
-          if (!order) return prev;
-          const paid = Math.round((order.paid + amount) * 100) / 100;
-          const balance = Math.round((order.total - paid) * 100) / 100;
-          const payment: POSPayment = { id: `${orderId}_p${order.payments.length + 1}`, date: "2026-07-03", type, amount, ref: `RCPT-${order.reference}` };
-          return {
-            ...prev,
-            orders: prev.orders.map((o) => (o.id === orderId ? { ...o, paid, balance, payments: [...o.payments, payment] } : o)),
-            customers: prev.customers.map((c) => (c.id === order.customerId ? { ...c, balance: Math.round((c.balance - amount) * 100) / 100 } : c)),
-          };
-        });
-      },
+    const dueBefore = order.balance;
+    const applied = Math.min(payAmount, dueBefore); // portion that goes to this order
+    const overpay = isCredit ? 0 : Math.max(0, payAmount - dueBefore); // credit payments never create more credit
 
+    const paid = Math.round((order.paid + applied) * 100) / 100;
+    const balance = Math.round((order.total - paid) * 100) / 100;
+    const payment: POSPayment = { id: `${orderId}_p${order.payments.length + 1}`, date: "2026-07-03", type, amount: payAmount, ref: `RCPT-${order.reference}` };
+
+    return {
+      ...prev,
+      orders: prev.orders.map((o) => (o.id === orderId ? { ...o, paid, balance, payments: [...o.payments, payment] } : o)),
+      customers: prev.customers.map((c) => {
+        if (c.id !== order.customerId) return c;
+        const creditDelta = isCredit ? -applied : overpay;
+        return { ...c, balance: Math.round((c.balance - applied) * 100) / 100, creditBalance: Math.round((c.creditBalance + creditDelta) * 100) / 100 };
+      }),
+    };
+  });
+},
+useCredit(customerId, amount) {
+  setDb((prev) => ({
+    ...prev,
+    customers: prev.customers.map((c) => (c.id === customerId ? { ...c, creditBalance: Math.round((c.creditBalance - amount) * 100) / 100 } : c)),
+  }));
+},
+addCredit(customerId, amount, type) {
+  setDb((prev) => ({
+    ...prev,
+    customers: prev.customers.map((c) => {
+      if (c.id !== customerId) return c;
+      const log: CreditLog = { id: `${customerId}_cr${(c.creditLogs?.length ?? 0) + 1}`, date: "2026-07-03", type, amount };
+      return { ...c, creditBalance: Math.round((c.creditBalance + amount) * 100) / 100, creditLogs: [log, ...(c.creditLogs ?? [])] };
+    }),
+  }));
+},
       bulkStatus(ids, status) {
         const idset = new Set(ids);
         setDb((prev) => ({ ...prev, orders: prev.orders.map((o) => (idset.has(o.id) && o.status !== "Cancelled" ? { ...o, status } : o)) }));

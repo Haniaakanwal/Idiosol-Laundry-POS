@@ -25,6 +25,7 @@ export default function OrderDetail() {
 
   const o = pos.orderById(id);
   const t = tenants.find((x) => x.id === o?.clientId);
+  const customer = pos.customers.find((c) => c.id === o?.customerId);
   if (!o || !t) return <div><Link href="/pos/orders" className="text-sm text-brand-600">← Orders</Link><p className="mt-4 text-sm text-slate-500">Order not found.</p></div>;
   const cur = t.currency;
   const flow = STATUS_FLOW[o.status];
@@ -139,17 +140,34 @@ export default function OrderDetail() {
         </div>
       </div>
 
-      <Modal open={payOpen} onClose={() => setPayOpen(false)} title={`Take payment · ${o.reference}`}>
+  <Modal open={payOpen} onClose={() => setPayOpen(false)} title={`Take payment · ${o.reference}`}>
         <div className="space-y-4">
           <div className="rounded-lg bg-slate-50 px-4 py-3 text-sm"><span className="text-slate-500">Balance due </span><span className="font-semibold text-slate-900">{money(o.balance, cur)}</span></div>
+          {customer && customer.creditBalance > 0 && (
+            <div className="flex items-center justify-between rounded-lg bg-emerald-50 px-3 py-2 text-sm">
+              <span className="text-emerald-700">Available credit: {money(customer.creditBalance, cur)}</span>
+           <button
+                onClick={() => {
+                  setPt("Credit");
+                  setAmt(Math.min(customer.creditBalance, o.balance));
+                }}
+                className="text-xs font-medium text-emerald-700 hover:underline"
+              >
+                Apply credit
+              </button>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-4">
             <Field label="Method"><select className={inputCls} value={pt} onChange={(e) => setPt(e.target.value as PaymentType)}>{PAYMENT_TYPES.map((x) => <option key={x}>{x}</option>)}</select></Field>
             <Field label="Amount"><input type="number" className={inputCls} value={amt} onChange={(e) => setAmt(Math.max(0, parseFloat(e.target.value) || 0))} /></Field>
           </div>
+          {amt > o.balance && (
+            <div className="text-sm text-emerald-600">Extra {money(Math.round((amt - o.balance) * 100) / 100, cur)} → saved as credit</div>
+          )}
         </div>
         <div className="mt-5 flex justify-end gap-2 border-t border-slate-100 pt-4">
           <Button variant="secondary" onClick={() => setPayOpen(false)}>Cancel</Button>
-          <Button disabled={amt <= 0} onClick={() => { pos.addOrderPayment(o.id, pt, Math.min(amt, o.balance)); setPayOpen(false); }}>Record {money(Math.min(amt, o.balance), cur)}</Button>
+          <Button disabled={amt <= 0} onClick={() => { pos.addOrderPayment(o.id, pt, amt); setPayOpen(false); }}>Record {money(amt, cur)}</Button>
         </div>
       </Modal>
     </>

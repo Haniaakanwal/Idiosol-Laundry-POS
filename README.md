@@ -41,7 +41,7 @@ modules; an Enterprise client (Marina) sees all 10 — proving the access contro
 | **Users** | Every staff account across all tenants, by role |
 | **Plans & Billing** | Starter / Professional / Enterprise and the module entitlements each unlocks |
 | **POS Modules** | The 14 functional modules, each mapped to its source FileMaker tables, with adoption counts |
-| **Data Model** | How per-client `.fmp12` copies collapse into one `clientId`-scoped Postgres schema (with RLS) |
+
 
 ## Access model
 
