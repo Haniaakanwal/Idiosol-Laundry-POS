@@ -89,6 +89,8 @@ export interface Tenant {
   featureOverrides: Partial<Record<FeatureKey, boolean>>;
   taxEnabled: boolean;
 taxRate: number;
+logoUrl?: string;
+}
 }
 
 export interface ActivityEvent {
