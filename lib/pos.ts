@@ -113,8 +113,9 @@ export interface POSOrder {
   customerId: string;
   customerName: string;
   customerPhone: string;
-  date: string;
-  deliveryType: DeliveryType;
+ date: string;
+orderTime?: string;
+deliveryType: DeliveryType;
   deliveryDate: string;
   pickupTime?: string;
   placement?: Placement;
