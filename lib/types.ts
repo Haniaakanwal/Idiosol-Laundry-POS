@@ -87,11 +87,14 @@ export interface Tenant {
   // Per-tenant feature overrides on top of the plan defaults.
   // A key present here wins over the plan; absent = inherit plan.
   featureOverrides: Partial<Record<FeatureKey, boolean>>;
-  taxEnabled: boolean;
+taxEnabled: boolean;
 taxRate: number;
 logoUrl?: string;
+trn?: string;
+address?: string;
+receiptNote?: string;
 }
-}
+
 
 export interface ActivityEvent {
   id: string;
