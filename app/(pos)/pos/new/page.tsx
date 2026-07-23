@@ -34,7 +34,11 @@ export default function NewOrderPage() {
 
   // order header
   const [deliveryType, setDeliveryType] = useState<DeliveryType>("Pickup");
-  const [deliveryDate, setDeliveryDate] = useState("2026-07-05");
+const [deliveryDate, setDeliveryDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 2); // default: 2 days from today
+    return d.toISOString().slice(0, 10);
+  });
   const [pickupTime, setPickupTime] = useState("18:00");
   const [placement, setPlacement] = useState<Placement>("Cabin");
 
@@ -145,7 +149,7 @@ payment: payAmount > 0 ? { type: payType, amount: payAmount } : undefined, taxRa
             {/* order header */}
             <div className="border-b border-slate-100 px-4 py-3">
               <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
-                <Meta label="Order date" value="2026-07-03" />
+                <Meta label="Order date" value="todayStr()" />
                 <div>
                   <div className="mb-0.5 text-slate-400">Delivery</div>
                   <input type="date" value={deliveryDate} onChange={(e) => setDeliveryDate(e.target.value)} className="w-full rounded border border-slate-200 px-1.5 py-1 text-xs" />
@@ -215,7 +219,7 @@ payment: payAmount > 0 ? { type: payType, amount: payAmount } : undefined, taxRa
                       <div className="flex items-center justify-between rounded-lg bg-brand-50 px-3 py-2">
                         <div className="min-w-0">
                           <div className="truncate text-sm font-medium text-slate-900">{customer.fullName} {customer.isBlacklist && <Badge tone="rose">blacklist</Badge>}</div>
-                          <div className="text-[11px] text-slate-500">{customer.phone}{customer.balance > 0 ? ` · outstanding ${money(customer.balance, cur)}` : ""}</div>
+                          <div className="text-[11px] text-slate-500">{customer.phone}{pos.balanceFor(customer.id) > 0 ? ` · outstanding ${money(pos.balanceFor(customer.id), cur)}` : ""}</div>
                         </div>
                         <button onClick={() => setCustomer(null)} className="text-slate-400 hover:text-slate-600"><X className="h-4 w-4" /></button>
                       </div>

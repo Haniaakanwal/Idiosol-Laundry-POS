@@ -32,9 +32,76 @@ export default function OrderDetail() {
 
   return (
     <>
-      <Link href="/pos/orders" className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-700"><ArrowLeft className="h-4 w-4" /> Orders</Link>
+   <Link href="/pos/orders" className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-700 print:hidden"><ArrowLeft className="h-4 w-4" /> Orders</Link>
+<style>{`
+        @media print {
+          @page { size: 80mm auto; margin: 3mm; }
+        }
+      `}</style>
 
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
+      <div className="hidden print:block print:font-mono print:text-[10px] print:leading-snug print:text-black" style={{ width: "74mm", margin: "0 auto" }}>
+       <div className="flex items-start justify-between">
+          <div className="text-base font-bold uppercase leading-tight">{t.name}</div>
+          {t.logoUrl && <img src={t.logoUrl} alt={t.name} className="h-14 w-14 object-contain" />}
+        </div>
+        {t.phone && <div>Tel: {t.phone}</div>}
+        {t.address && <div className="whitespace-pre-line">{t.address}</div>}
+        {t.trn && <div>TRN: {t.trn}</div>}
+
+        <div className="my-1 border-t border-dashed border-black" />
+        <div className="text-center text-xs font-bold">JOB ORDER</div>
+        <div className="my-1 border-t border-dashed border-black" />
+
+        <div className="flex justify-between"><span>Order #</span><span>{o.reference}</span></div>
+        <div className="flex justify-between"><span>Customer</span><span>{o.customerName}</span></div>
+        <div className="flex justify-between"><span>Phone</span><span>{o.customerPhone}</span></div>
+        {customer?.address && <div className="flex justify-between gap-2"><span>Address</span><span className="text-right">{customer.address}</span></div>}
+       <div className="flex justify-between"><span>Order Date</span><span>{o.date}{o.orderTime ? ` ${o.orderTime}` : ""}</span></div>
+        <div className="flex justify-between"><span>Deliv. Date</span><span>{o.deliveryDate}{o.pickupTime ? ` ${o.pickupTime}` : ""}</span></div>
+
+        <div className="my-2 border-t border-dashed border-black" />
+
+        <div className="flex justify-between font-semibold">
+          <span className="w-2/5">Product</span><span className="w-[12%] text-right">Qty</span><span className="w-[16%] text-right">Amt</span><span className="w-[16%] text-right">Vat</span><span className="w-[16%] text-right">Total</span>
+        </div>
+        {o.items.map((it) => {
+          const rate = (o as any).taxRate ?? 0;
+          const itemVat = Math.round(it.lineTotal * (rate / 100) * 100) / 100;
+          const itemTotal = Math.round((it.lineTotal + itemVat) * 100) / 100;
+          return (
+            <div key={it.id} className="flex justify-between">
+              <span className="w-2/5 truncate">{it.serviceName}</span>
+              <span className="w-[12%] text-right">{it.qty}</span>
+              <span className="w-[16%] text-right">{money(it.lineTotal, cur)}</span>
+              <span className="w-[16%] text-right">{money(itemVat, cur)}</span>
+              <span className="w-[16%] text-right">{money(itemTotal, cur)}</span>
+            </div>
+          );
+        })}
+
+        <div className="my-2 border-t border-dashed border-black" />
+
+        <div className="flex justify-between"><span>Paid</span><span>{money(o.paid, cur)}</span></div>
+        <div className="flex justify-between"><span>Qty</span><span>{o.items.reduce((s, it) => s + it.qty, 0)}</span></div>
+        <div className="flex justify-between"><span>Sub Total</span><span>{money(o.sub, cur)}</span></div>
+        <div className="flex justify-between"><span>Balance</span><span>{money(o.balance, cur)}</span></div>
+        {((o as any).taxRate) > 0 && <div className="flex justify-between"><span>VAT {(o as any).taxRate}%</span><span>{money((o as any).tax, cur)}</span></div>}
+        {o.discount > 0 && <div className="flex justify-between"><span>Discount</span><span>-{money(o.discount, cur)}</span></div>}
+        {customer && <div className="flex justify-between"><span>Wallet</span><span>{money(customer.creditBalance, cur)}</span></div>}
+
+        <div className="my-1 border-t border-dashed border-black" />
+        <div className="flex justify-between text-sm font-bold"><span>TOTAL</span><span>{money(o.total, cur)}</span></div>
+        <div className="my-2 border-t border-dashed border-black" />
+
+        {customer && (
+          <div className="flex justify-between font-semibold"><span>Total Outstanding</span><span>{money(pos.balanceFor(customer.id), cur)}</span></div>
+        )}
+
+        {t.receiptNote && <div className="mt-2 text-center text-[9px]">{t.receiptNote}</div>}
+        <div className="mt-1 text-center text-[8px] text-slate-600">Printed on: {new Date().toLocaleString()}</div>
+      </div>
+
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-3 print:hidden">
         <div>
           <div className="flex items-center gap-3">
             <h1 className="font-mono text-xl font-semibold text-slate-900">{o.reference}</h1>
@@ -80,9 +147,9 @@ export default function OrderDetail() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 print:hidden lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
-          <Card className="overflow-hidden">
+          <Card className="overflow-hidden print:rounded-none print:border-slate-300 print:shadow-none">
             <div className="border-b border-slate-100 px-5 py-3"><h2 className="text-sm font-semibold text-slate-900">Items</h2></div>
             <table className="w-full text-sm">
               <thead><tr className="text-left text-xs font-semibold uppercase tracking-wide text-slate-400"><th className="px-5 py-2">Item</th><th className="px-3 py-2">Type</th><th className="px-3 py-2">Qty</th><th className="px-3 py-2">Unit</th><th className="px-3 py-2">Total</th></tr></thead>
@@ -100,7 +167,7 @@ export default function OrderDetail() {
             </table>
           </Card>
 
-          <Card className="overflow-hidden">
+          <Card className="overflow-hidden print:rounded-none print:border-slate-300 print:shadow-none">
             <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3">
               <h2 className="text-sm font-semibold text-slate-900">Payments</h2>
               {o.balance > 0 && <Button size="sm" onClick={() => { setAmt(Math.round(o.balance)); setPayOpen(true); }}>Take payment</Button>}
@@ -119,13 +186,13 @@ export default function OrderDetail() {
         </div>
 
         <div className="space-y-6">
-          <Card className="p-5">
+         <Card className="p-5 print:rounded-none print:border-slate-300 print:shadow-none">
             <h2 className="mb-3 text-sm font-semibold text-slate-900">Customer</h2>
             <div className="font-medium text-slate-900">{o.customerName}</div>
             <div className="text-sm text-slate-500">{o.customerPhone}</div>
             {o.notes && <div className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">{o.notes}</div>}
           </Card>
-          <Card className="p-5">
+          <Card className="p-5 print:rounded-none print:border-slate-300 print:shadow-none">
             <h2 className="mb-3 text-sm font-semibold text-slate-900">Totals</h2>
             <dl className="space-y-2 text-sm">
               <Row label="Subtotal" value={money(o.sub, cur)} />
@@ -140,7 +207,8 @@ export default function OrderDetail() {
         </div>
       </div>
 
-  <Modal open={payOpen} onClose={() => setPayOpen(false)} title={`Take payment · ${o.reference}`}>
+
+      <Modal open={payOpen} onClose={() => setPayOpen(false)} title={`Take payment · ${o.reference}`}>
         <div className="space-y-4">
           <div className="rounded-lg bg-slate-50 px-4 py-3 text-sm"><span className="text-slate-500">Balance due </span><span className="font-semibold text-slate-900">{money(o.balance, cur)}</span></div>
           {customer && customer.creditBalance > 0 && (

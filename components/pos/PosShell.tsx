@@ -10,9 +10,9 @@ import { canAccess } from "@/lib/rbac";
 import { isFeatureOn } from "@/lib/catalog";
 import { FeatureKey } from "@/lib/types";
 import {
-  LayoutDashboard, PlusCircle, ClipboardList, Users, Building2, Shirt,
+ LayoutDashboard, PlusCircle, ClipboardList, Users, Building2, Shirt,
   CreditCard, BarChart3, Receipt, Megaphone, LogOut, ArrowLeft, ChevronDown,
-  MoreVertical, History, FileText,Users2
+  MoreVertical, History, FileText,Users2, Menu, ChevronLeft, ChevronRight, X
 } from "lucide-react";
 import { StatusBadge } from "@/components/ui";
 
@@ -35,7 +35,22 @@ export function PosShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
 
-  const isStaff = session?.role === "staff";
+ const isStaff = session?.role === "staff";
+
+  const [navOpen, setNavOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
+
+  useEffect(() => {
+    const saved = localStorage.getItem("laundry-pos-sidebar-collapsed");
+    if (saved === "1") setCollapsed(true);
+  }, []);
+
+  function toggleCollapse() {
+    setCollapsed((c) => {
+      localStorage.setItem("laundry-pos-sidebar-collapsed", c ? "0" : "1");
+      return !c;
+    });
+  }
 
   // Staff are locked to their own tenant — force the active client to match.
   useEffect(() => {
@@ -68,14 +83,17 @@ if (!tenant) {
     return keys.some((k) => isFeatureOn(tenant.plan, tenant.featureOverrides, k));
   };
 const role = session?.role === "staff" ? session.userRole : "Owner";
-console.log("role:", role);
+
 const nav = NAV.filter((n) => enabled(n.feature) && canAccess(role, n.href));
 
   return (
     <div className="min-h-screen bg-slate-50">
       {/* top bar */}
-      <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-slate-200 bg-white px-4 print:hidden">
+    <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-slate-200 bg-white px-4 print:hidden">
         <div className="flex items-center gap-3">
+          <button onClick={() => setNavOpen(true)} className="rounded-md p-1.5 text-slate-500 hover:bg-slate-100 lg:hidden">
+            <Menu className="h-5 w-5" />
+          </button>
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-600 text-sm font-bold text-white">
             {tenant.name.slice(0, 1)}
           </div>
@@ -103,37 +121,59 @@ const nav = NAV.filter((n) => enabled(n.feature) && canAccess(role, n.href));
           )}
         </div>
       </header>
+{navOpen && <div onClick={() => setNavOpen(false)} className="fixed inset-0 z-30 bg-black/40 lg:hidden" />}
 
-      <div className="flex">
-        {/* side nav */}
-        <aside className="sticky top-14 h-[calc(100vh-3.5rem)] w-56 shrink-0 border-r border-slate-200 bg-white px-3 py-4 print:hidden">
-          <nav className="space-y-0.5">
-            {nav.map((item) => {
-              const active = pathname === item.href || (item.href !== "/pos" && pathname.startsWith(item.href));
-              const Icon = item.icon;
-              return (
-                <Link key={item.href} href={item.href} className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition ${active ? "bg-brand-50 text-brand-700" : "text-slate-600 hover:bg-slate-100"}`}>
-                  <Icon className="h-4 w-4" />
-                  {item.label}
-                </Link>
-              );
-            })}
-          </nav>
-          <div className="mt-4 border-t border-slate-100 pt-4">
-            {isStaff ? (
-              <button onClick={signOut} className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-slate-500 hover:bg-slate-100">
-                <LogOut className="h-4 w-4" /> Sign out
-              </button>
-            ) : (
-              <button onClick={() => { pos.setActiveClient(null); router.push("/clients"); }} className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-slate-500 hover:bg-slate-100">
-                <LogOut className="h-4 w-4" /> Back to admin
-              </button>
-            )}
-          </div>
-        </aside>
+  <aside
+        className={`fixed left-0 top-14 z-40 h-[calc(100vh-3.5rem)] w-56 -translate-x-full border-r border-slate-200 bg-white px-3 py-4 shadow-xl transition-all duration-200 print:hidden lg:translate-x-0 lg:shadow-none ${
+          navOpen ? "translate-x-0" : ""
+        } ${collapsed ? "lg:w-20 lg:px-2.5" : "lg:w-56"}`}
+      >
+        <div className="mb-2 flex items-center justify-between lg:hidden">
+          <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">Menu</span>
+          <button onClick={() => setNavOpen(false)} className="rounded-md p-1.5 text-slate-500 hover:bg-slate-100">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <nav className="space-y-1">
+          {nav.map((item) => {
+            const active = pathname === item.href || (item.href !== "/pos" && pathname.startsWith(item.href));
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setNavOpen(false)}
+                title={collapsed ? item.label : undefined}
+                className={`flex items-center gap-3 rounded-lg text-sm font-medium transition ${
+                  collapsed ? "lg:h-10 lg:w-10 lg:justify-center lg:gap-0 lg:px-0 lg:py-0 lg:mx-auto px-3 py-2" : "px-3 py-2"
+                } ${active ? "bg-brand-50 text-brand-700" : "text-slate-600 hover:bg-slate-100"}`}
+              >
+                <Icon className="h-4 w-4 shrink-0" />
+                <span className={collapsed ? "lg:hidden" : ""}>{item.label}</span>
+              </Link>
+            );
+          })}
+        </nav>
+   <div className={`mt-4 border-t border-slate-100 pt-4 ${collapsed ? "lg:px-0" : ""}`}>
+          {isStaff ? (
+            <button onClick={signOut} className={`flex items-center gap-3 rounded-lg text-sm font-medium text-slate-500 hover:bg-slate-100 ${collapsed ? "lg:h-10 lg:w-10 lg:justify-center lg:gap-0 lg:mx-auto lg:px-0 w-full px-3 py-2" : "w-full px-3 py-2"}`} title={collapsed ? "Sign out" : undefined}>
+              <LogOut className="h-4 w-4 shrink-0" /> <span className={collapsed ? "lg:hidden" : ""}>Sign out</span>
+            </button>
+          ) : (
+            <button onClick={() => { pos.setActiveClient(null); router.push("/clients"); }} className={`flex items-center gap-3 rounded-lg text-sm font-medium text-slate-500 hover:bg-slate-100 ${collapsed ? "lg:h-10 lg:w-10 lg:justify-center lg:gap-0 lg:mx-auto lg:px-0 w-full px-3 py-2" : "w-full px-3 py-2"}`} title={collapsed ? "Back to admin" : undefined}>
+              <LogOut className="h-4 w-4 shrink-0" /> <span className={collapsed ? "lg:hidden" : ""}>Back to admin</span>
+            </button>
+          )}
+        </div>
+        <button
+          onClick={toggleCollapse}
+          className="mt-4 hidden w-full items-center justify-center gap-2 border-t border-slate-100 pt-3 pb-1 text-xs font-medium text-slate-400 hover:text-slate-800 lg:flex"
+        >
+          {collapsed ? <ChevronRight className="h-4 w-4" /> : <><ChevronLeft className="h-4 w-4" /> </>}
+        </button>
+      </aside>
 
-        <main className="min-w-0 flex-1 px-6 py-6">{children}</main>
-      </div>
+     <main className={`min-w-0 px-6 py-6 transition-all duration-200 ${collapsed ? "lg:pl-20 ml-6" : "lg:pl-56"}`}>{children}</main>
     </div>
   );
 }

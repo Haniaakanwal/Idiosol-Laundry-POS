@@ -35,7 +35,7 @@ export default function MarketingPage() {
   const recipients = tpl.segment === "ready"
     ? orders.filter((o) => o.status === "Ready")
     : tpl.segment === "balance"
-    ? customers.filter((c) => c.balance > 0)
+    ? customers.filter((c) => pos.balanceFor(c.id) > 0)
     : customers;
 
   return (

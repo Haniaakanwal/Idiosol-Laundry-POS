@@ -86,13 +86,16 @@ export default function ClientDetail() {
   );
 }
 
-// ---------------------------------------------------------------------------
 function OverviewTab({ t }: { t: any }) {
   const plan = PLAN_MAP[t.plan];
   const onCount = FEATURES.filter((f) => isFeatureOn(t.plan, t.featureOverrides, f.key)).length;
   const trialDays = daysUntil(t.trialEndsAt);
  
 const [taxRate, setTaxRate] = useState(t.taxRate);
+const [logoUrl, setLogoUrl] = useState(t.logoUrl ?? "");
+const [trn, setTrn] = useState(t.trn ?? "");
+const [address, setAddress] = useState(t.address ?? "");
+const [receiptNote, setReceiptNote] = useState(t.receiptNote ?? "");
  const { updateTenant } = useStore();
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -110,8 +113,7 @@ const [taxRate, setTaxRate] = useState(t.taxRate);
             <Progress value={t.storageUsedMB} max={plan.storageLimitMB} />
           </div>
         </Card>
-
-        <Card className="p-5">
+<Card className="p-5">
           <h3 className="mb-4 text-sm font-semibold text-slate-900">Contact</h3>
           <dl className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm">
             <Row label="Owner" value={t.contactName} />
@@ -121,6 +123,49 @@ const [taxRate, setTaxRate] = useState(t.taxRate);
             <Row label="Currency" value={t.currency} />
             <Row label="Locale" value={t.locale === "ar" ? "Arabic (RTL)" : "English"} />
           </dl>
+        </Card>
+
+        <Card className="p-5">
+          <h3 className="mb-4 text-sm font-semibold text-slate-900">Ticket branding</h3>
+          <p className="mb-4 text-xs text-slate-500">Shown on printed order tickets/invoices for this client.</p>
+          <div className="space-y-4">
+            <Field label="Logo URL">
+              <input
+                className={inputCls}
+                value={logoUrl}
+                placeholder="https://..."
+                onChange={(e) => setLogoUrl(e.target.value)}
+                onBlur={() => updateTenant(t.id, { logoUrl })}
+              />
+            </Field>
+            <Field label="TRN (Tax Registration Number)">
+              <input
+                className={inputCls}
+                value={trn}
+                onChange={(e) => setTrn(e.target.value)}
+                onBlur={() => updateTenant(t.id, { trn })}
+              />
+            </Field>
+            <Field label="Address">
+              <textarea
+                className={inputCls}
+                rows={2}
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                onBlur={() => updateTenant(t.id, { address })}
+              />
+            </Field>
+            <Field label="Footer note (on ticket)">
+              <textarea
+                className={inputCls}
+                rows={2}
+                value={receiptNote}
+                placeholder="e.g. Thank you for choosing us!"
+                onChange={(e) => setReceiptNote(e.target.value)}
+                onBlur={() => updateTenant(t.id, { receiptNote })}
+              />
+            </Field>
+          </div>
         </Card>
       </div>
 

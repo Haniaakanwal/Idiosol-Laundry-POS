@@ -54,7 +54,7 @@ const [creditFor, setCreditFor] = useState<POSCustomer | null>(null);
     <ShoppingBag className="h-3.5 w-3.5" /> {orderCount(c.id)}
   </Link>
 </td>
-                <td className="px-4 py-3">{c.balance > 0 ? <span className="font-medium text-amber-600">{money(c.balance, cur)}</span> : <span className="text-slate-400">—</span>}</td>
+               <td className="px-4 py-3">{pos.balanceFor(c.id) > 0 ? <span className="font-medium text-amber-600">{money(pos.balanceFor(c.id), cur)}</span> : <span className="text-slate-400">—</span>}</td>
 <td className="px-4 py-3">
                   <button
                     onClick={(e) => { e.stopPropagation(); setCreditFor(c); }}

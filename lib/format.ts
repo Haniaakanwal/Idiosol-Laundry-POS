@@ -26,7 +26,7 @@ export function dateLabel(iso?: string): string {
 // Days until an ISO date, relative to the app's fixed "today" (2026-07-03).
 export function daysUntil(iso?: string): number | null {
   if (!iso) return null;
-  const today = Date.parse("2026-07-03");
+  const today = Date.parse("todayStr()");
   const target = Date.parse(iso.slice(0, 10));
   if (Number.isNaN(target)) return null;
   return Math.round((target - today) / 86400000);

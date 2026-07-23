@@ -143,7 +143,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     role: "Owner",
     department: "Management",
     status: "active",
-    lastActive: "2026-07-03",
+    lastActive: "todayStr()",
     passwordHash,
     username: input.email.split("@")[0],
 password: tempPassword,

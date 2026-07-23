@@ -23,6 +23,13 @@ computeTotals,
 
 const LS_KEY = "laundry-saas-pos:v1";
 
+function todayStr() {
+  return new Date().toISOString().slice(0, 10); // YYYY-MM-DD, real system date
+}
+function nowTimeStr() {
+  return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }); // real system time
+}
+
 interface PosDB {
   customers: POSCustomer[];
   services: POSService[];
@@ -81,7 +88,8 @@ messagesFor: (customerId: string) => WhatsAppMessage[];
   bulkStatus: (ids: string[], status: OrderStatus) => void;
   bulkPay: (ids: string[], type: PaymentType) => void;
   reset: () => void;
-  useCredit: (customerId: string, amount: number) => void;
+ useCredit: (customerId: string, amount: number) => void;
+  balanceFor: (customerId: string) => number;
 addCredit: (customerId: string, amount: number, type: CreditAddMethod) => void;
  
 }
@@ -138,7 +146,7 @@ useEffect(() => {
 
    addCustomer(c) {
         const id = `${c.clientId}_cust_${db.customers.filter((x) => x.clientId === c.clientId).length + 1}_${c.phone.length}`;
-        const customer: POSCustomer = { ...c, id, balance: 0, createdAt: "2026-07-03", creditBalance: 0 };
+        const customer: POSCustomer = { ...c, id, balance: 0, createdAt: "todayStr()", creditBalance: 0 };
         setDb((prev) => ({ ...prev, customers: [customer, ...prev.customers] }));
         return customer;
       },
@@ -179,16 +187,17 @@ createOrder(o) {
         const balance = Math.round((totals.total - applied) * 100) / 100;
 
         const payments: POSPayment[] = payAmount > 0
-          ? [{ id: `${id}_p1`, date: "2026-07-03", type: o.payment!.type, amount: payAmount, ref: `RCPT-${seq}` }]
+          ? [{ id: `${id}_p1`, date: "todayStr()", type: o.payment!.type, amount: payAmount, ref: `RCPT-${seq}` }]
           : [];
-        const order: POSOrder = {
+      const order: POSOrder = {
           id,
           clientId: o.clientId,
           reference: `JO-${seq}`,
           customerId: o.customerId,
           customerName: o.customerName,
           customerPhone: o.customerPhone,
-          date: "2026-07-03",
+          date: todayStr(),
+          orderTime: nowTimeStr(),
           deliveryType: o.deliveryType,
           deliveryDate: o.deliveryDate,
           pickupTime: o.pickupTime,
@@ -205,7 +214,7 @@ createOrder(o) {
           payments,
           salesman: o.salesman,
           notes: o.notes,
-          createdAt: "2026-07-03",
+          createdAt: "todayStr()",
         };
    setDb((prev) => ({
           ...prev,
@@ -236,7 +245,7 @@ addOrderPayment(orderId, type, amount) {
 
     const paid = Math.round((order.paid + applied) * 100) / 100;
     const balance = Math.round((order.total - paid) * 100) / 100;
-    const payment: POSPayment = { id: `${orderId}_p${order.payments.length + 1}`, date: "2026-07-03", type, amount: payAmount, ref: `RCPT-${order.reference}` };
+    const payment: POSPayment = { id: `${orderId}_p${order.payments.length + 1}`, date: "todayStr()", type, amount: payAmount, ref: `RCPT-${order.reference}` };
 
     return {
       ...prev,
@@ -255,12 +264,18 @@ useCredit(customerId, amount) {
     customers: prev.customers.map((c) => (c.id === customerId ? { ...c, creditBalance: Math.round((c.creditBalance - amount) * 100) / 100 } : c)),
   }));
 },
+balanceFor(customerId) {
+  const total = db.orders
+    .filter((o) => o.customerId === customerId && o.status !== "Cancelled")
+    .reduce((sum, o) => sum + o.balance, 0);
+  return Math.round(total * 100) / 100;
+},
 addCredit(customerId, amount, type) {
   setDb((prev) => ({
     ...prev,
     customers: prev.customers.map((c) => {
       if (c.id !== customerId) return c;
-      const log: CreditLog = { id: `${customerId}_cr${(c.creditLogs?.length ?? 0) + 1}`, date: "2026-07-03", type, amount };
+      const log: CreditLog = { id: `${customerId}_cr${(c.creditLogs?.length ?? 0) + 1}`, date: "todayStr()", type, amount };
       return { ...c, creditBalance: Math.round((c.creditBalance + amount) * 100) / 100, creditLogs: [log, ...(c.creditLogs ?? [])] };
     }),
   }));
@@ -278,7 +293,7 @@ addCredit(customerId, amount, type) {
             if (!idset.has(o.id) || o.balance <= 0) return o;
             const amt = o.balance;
             custDelta[o.customerId] = (custDelta[o.customerId] ?? 0) + amt;
-            const payment: POSPayment = { id: `${o.id}_p${o.payments.length + 1}`, date: "2026-07-03", type, amount: amt, ref: `RCPT-${o.reference}` };
+            const payment: POSPayment = { id: `${o.id}_p${o.payments.length + 1}`, date: "todayStr()", type, amount: amt, ref: `RCPT-${o.reference}` };
             return { ...o, paid: o.total, balance: 0, payments: [...o.payments, payment] };
           });
           const customers = prev.customers.map((c) => (custDelta[c.id] ? { ...c, balance: Math.round((c.balance - custDelta[c.id]) * 100) / 100 } : c));
