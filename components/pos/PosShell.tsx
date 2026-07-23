@@ -173,7 +173,7 @@ const nav = NAV.filter((n) => enabled(n.feature) && canAccess(role, n.href));
         </button>
       </aside>
 
-     <main className={`min-w-0 px-6 py-6 transition-all duration-200 ${collapsed ? "lg:pl-20 ml-6" : "lg:pl-56"}`}>{children}</main>
+     <main className={`min-w-0 px-6 py-6 transition-all duration-200 ${collapsed ? "lg:pl-24" : "lg:pl-60"}`}>{children}</main>
     </div>
   );
 }

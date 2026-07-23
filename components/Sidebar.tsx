@@ -49,7 +49,7 @@ export function Sidebar({
       <aside
         className={`fixed inset-y-0 left-0 z-40 flex w-60 -translate-x-full flex-col border-r border-slate-800 bg-slate-900 transition-all duration-200 lg:translate-x-0 ${
           open ? "translate-x-0" : ""
-        } ${collapsed ? "lg:w-16" : "lg:w-60"}`}
+        } ${collapsed ? "lg:w-16 " : "lg:w-60"}`}
       >
         <div className="flex items-center justify-between gap-2.5 px-5 py-5">
           <div className="flex items-center gap-2.5">
