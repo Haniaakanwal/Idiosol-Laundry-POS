@@ -67,6 +67,7 @@ interface AuthValue {
   logout: () => void;
   resetAdminPassword: (email: string) => { ok: true; tempPassword: string } | { ok: false; error: string };
   setNewAdminPassword: (newPassword: string) => void;
+  isAdminEmail: (email: string) => boolean;
 }
 
 const Ctx = createContext<AuthValue | null>(null);
@@ -98,9 +99,12 @@ useEffect(() => { setAdminAccount(loadAdminAccount()); }, []);
     }
   }, [session, ready]);
 
-  const value = useMemo<AuthValue>(() => ({
+const value = useMemo<AuthValue>(() => ({
     session,
     ready,
+    isAdminEmail(email) {
+      return email.trim().toLowerCase() === adminAccount.email.toLowerCase();
+    },
     login(email, password) {
       const e = email.trim().toLowerCase();
    if (e === adminAccount.email.toLowerCase()) {

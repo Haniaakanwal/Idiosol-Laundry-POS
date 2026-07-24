@@ -1,22 +1,26 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-store";
 
 export default function AdminLoginPage() {
-  const { login } = useAuth();
+  const { login, session, ready } = useAuth();
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
-function submit() {
-  const res = login(email, password);
-  if (!res.ok) { setError(res.error); return; }
-  const session = JSON.parse(localStorage.getItem("laundry-saas-auth:v1") || "{}");
-  router.push(session.mustReset ? "/admin-login/set-password" : "/dashboard");
-}
+  // Already signed in as admin? skip the form entirely.
+  useEffect(() => {
+    if (ready && session?.role === "admin") router.replace("/");
+  }, [ready, session, router]);
+
+  function submit() {
+    const res = login(email, password);
+    if (!res.ok) { setError(res.error); return; }
+    router.replace("/"); // root page + RequireAdmin guard route correctly (incl. mustReset)
+  }
 
   return (
     <div className="mx-auto max-w-sm py-24 px-6">

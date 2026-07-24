@@ -34,7 +34,7 @@ export function RequireAuth({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!ready) return;
-    if (!session) { router.replace("/admin-login"); return; }
+    if (!session) { router.replace("/login"); return; } // POS app is client-facing — always /login here
     if (session.role === "staff" && !canAccess(session.userRole, pathname)) {
       router.replace("/pos");
     }
