@@ -6,16 +6,20 @@ import { useAuth } from "@/lib/auth-store";
 import { Waves, LogIn } from "lucide-react";
 
 export default function LoginPage() {
-  const { login, session, ready, isAdminEmail } = useAuth();
+ const { login, session, ready, isAdminEmail, logout } = useAuth();
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
-  // Already signed in? skip the form entirely.
+// This page is for client staff only. If an admin happens to have this
+  // browser signed in, quietly sign them out so the client always just
+  // sees a plain login form — no admin screens, no interference.
   useEffect(() => {
-    if (ready && session) router.replace("/");
-  }, [ready, session, router]);
+    if (!ready) return;
+    if (session?.role === "admin") { logout(); return; }
+    if (session?.role === "staff") router.replace("/");
+  }, [ready, session, router, logout]);
 
   function submit(e?: React.FormEvent) {
     e?.preventDefault();
@@ -28,9 +32,10 @@ export default function LoginPage() {
     router.replace("/");
   }
 
+
   return (
     <div className="flex min-h-screen bg-slate-50">
-      {/* left brand panel */}
+
       <div className="hidden w-1/2 flex-col justify-between bg-slate-900 p-10 lg:flex">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-600"><Waves className="h-6 w-6 text-white" /></div>

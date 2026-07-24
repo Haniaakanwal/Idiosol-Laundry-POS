@@ -10,9 +10,9 @@ import { canAccess } from "@/lib/rbac";
 import { isFeatureOn } from "@/lib/catalog";
 import { FeatureKey } from "@/lib/types";
 import {
- LayoutDashboard, PlusCircle, ClipboardList, Users, Building2, Shirt,
+  LayoutDashboard, PlusCircle, ClipboardList, Users, Building2, Shirt,
   CreditCard, BarChart3, Receipt, Megaphone, LogOut, ArrowLeft, ChevronDown,
-  MoreVertical, History, FileText,Users2, Menu, ChevronLeft, ChevronRight, X
+  MoreVertical, History, FileText,Users2, Menu, ChevronLeft, ChevronRight, X, KeyRound
 } from "lucide-react";
 import { StatusBadge } from "@/components/ui";
 
@@ -36,9 +36,9 @@ export function PosShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
  const isStaff = session?.role === "staff";
-
-  const [navOpen, setNavOpen] = useState(false);
+const [navOpen, setNavOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  const [pwOpen, setPwOpen] = useState(false);
 
   useEffect(() => {
     const saved = localStorage.getItem("laundry-pos-sidebar-collapsed");
@@ -106,8 +106,12 @@ const nav = NAV.filter((n) => enabled(n.feature) && canAccess(role, n.href));
         <div className="flex items-center gap-2">
           <ActionsMenu enabled={enabled} />
           {!isStaff && <ClientSwitcher />}
-          <div className="hidden text-right sm:block">
-            <div className="text-xs font-medium text-slate-700">{session?.name}</div>
+     <div className="hidden text-right sm:block">
+            {isStaff ? (
+              <button onClick={() => setPwOpen(true)} className="text-xs font-medium text-slate-700 hover:text-brand-600 hover:underline">{session?.name}</button>
+            ) : (
+              <div className="text-xs font-medium text-slate-700">{session?.name}</div>
+            )}
             <div className="text-[11px] text-slate-400">{isStaff ? (session as any).userRole : "Platform admin"}</div>
           </div>
           {isStaff ? (
@@ -122,12 +126,12 @@ const nav = NAV.filter((n) => enabled(n.feature) && canAccess(role, n.href));
         </div>
       </header>
 {navOpen && <div onClick={() => setNavOpen(false)} className="fixed inset-0 z-30 bg-black/40 lg:hidden" />}
-
-  <aside
+<aside
         className={`fixed left-0 top-14 z-40 h-[calc(100vh-3.5rem)] w-56 -translate-x-full border-r border-slate-200 bg-white px-3 py-4 shadow-xl transition-all duration-200 print:hidden lg:translate-x-0 lg:shadow-none ${
           navOpen ? "translate-x-0" : ""
-        } ${collapsed ? "lg:w-20 lg:px-2.5" : "lg:w-56"}`}
+        } ${collapsed ? "lg:w-16 lg:px-2" : "lg:w-56"}`}
       >
+      
         <div className="mb-2 flex items-center justify-between lg:hidden">
           <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">Menu</span>
           <button onClick={() => setNavOpen(false)} className="rounded-md p-1.5 text-slate-500 hover:bg-slate-100">
@@ -145,7 +149,7 @@ const nav = NAV.filter((n) => enabled(n.feature) && canAccess(role, n.href));
                 onClick={() => setNavOpen(false)}
                 title={collapsed ? item.label : undefined}
                 className={`flex items-center gap-3 rounded-lg text-sm font-medium transition ${
-                  collapsed ? "lg:h-10 lg:w-10 lg:justify-center lg:gap-0 lg:px-0 lg:py-0 lg:mx-auto px-3 py-2" : "px-3 py-2"
+                  collapsed ? "lg:h-9 lg:w-9 lg:justify-center lg:gap-0 lg:px-0 lg:py-0 lg:mx-auto px-3 py-2" : "px-3 py-2"
                 } ${active ? "bg-brand-50 text-brand-700" : "text-slate-600 hover:bg-slate-100"}`}
               >
                 <Icon className="h-4 w-4 shrink-0" />
@@ -156,11 +160,11 @@ const nav = NAV.filter((n) => enabled(n.feature) && canAccess(role, n.href));
         </nav>
    <div className={`mt-4 border-t border-slate-100 pt-4 ${collapsed ? "lg:px-0" : ""}`}>
           {isStaff ? (
-            <button onClick={signOut} className={`flex items-center gap-3 rounded-lg text-sm font-medium text-slate-500 hover:bg-slate-100 ${collapsed ? "lg:h-10 lg:w-10 lg:justify-center lg:gap-0 lg:mx-auto lg:px-0 w-full px-3 py-2" : "w-full px-3 py-2"}`} title={collapsed ? "Sign out" : undefined}>
+            <button onClick={signOut} className={`flex items-center gap-3 rounded-lg text-sm font-medium text-slate-500 hover:bg-slate-100 ${collapsed ? "lg:h-10 lg:w-10 lg:justify-center lg:gap-0 lg:mx-auto lg:px-0  w-full px-3 py-2" : "w-full px-3 py-2"}`} title={collapsed ? "Sign out" : undefined}>
               <LogOut className="h-4 w-4 shrink-0" /> <span className={collapsed ? "lg:hidden" : ""}>Sign out</span>
             </button>
           ) : (
-            <button onClick={() => { pos.setActiveClient(null); router.push("/clients"); }} className={`flex items-center gap-3 rounded-lg text-sm font-medium text-slate-500 hover:bg-slate-100 ${collapsed ? "lg:h-10 lg:w-10 lg:justify-center lg:gap-0 lg:mx-auto lg:px-0 w-full px-3 py-2" : "w-full px-3 py-2"}`} title={collapsed ? "Back to admin" : undefined}>
+            <button onClick={() => { pos.setActiveClient(null); router.push("/clients"); }} className={`flex items-center gap-3 rounded-lg text-sm font-medium text-slate-500 hover:bg-slate-100 ${collapsed ? "lg:h-9 lg:w-9 lg:justify-center lg:gap-0 lg:mx-auto lg:px-0  w-full px-3 py-2" : "w-full px-3 py-2"}`} title={collapsed ? "Back to admin" : undefined}>
               <LogOut className="h-4 w-4 shrink-0" /> <span className={collapsed ? "lg:hidden" : ""}>Back to admin</span>
             </button>
           )}
@@ -172,8 +176,59 @@ const nav = NAV.filter((n) => enabled(n.feature) && canAccess(role, n.href));
           {collapsed ? <ChevronRight className="h-4 w-4" /> : <><ChevronLeft className="h-4 w-4" /> </>}
         </button>
       </aside>
+<main className={`min-w-0 px-8 py-6 transition-all duration-200 ${collapsed ? "lg:pl-[88px]" : "lg:pl-64"}`}>{children}</main>
 
-     <main className={`min-w-0 px-6 py-6 transition-all duration-200 ${collapsed ? "lg:pl-24" : "lg:pl-60"}`}>{children}</main>
+      {pwOpen && <ChangePasswordModal onClose={() => setPwOpen(false)} />}
+    </div>
+  );
+}
+
+function ChangePasswordModal({ onClose }: { onClose: () => void }) {
+  const { session } = useAuth();
+  const store = useStore();
+  const [current, setCurrent] = useState("");
+  const [next, setNext] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [error, setError] = useState("");
+  const [done, setDone] = useState(false);
+
+  function submit() {
+    setError("");
+    if (next.length < 6) { setError("New password must be at least 6 characters."); return; }
+    if (next !== confirm) { setError("Passwords do not match."); return; }
+    // find this staff member's user id
+    const me = store.users.find((u) => u.email?.toLowerCase() === session?.email?.toLowerCase());
+    if (!me) { setError("Could not find your account."); return; }
+    const res = store.changeStaffPassword(me.id, current, next);
+    if (!res.ok) { setError(res.error); return; }
+    setDone(true);
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="w-full max-w-sm rounded-xl bg-white p-5 shadow-xl">
+        <h3 className="mb-1 text-sm font-semibold text-slate-900">Change password</h3>
+        {done ? (
+          <>
+            <p className="mt-3 text-sm text-emerald-600">Password updated successfully.</p>
+            <button onClick={onClose} className="mt-4 w-full rounded-lg bg-brand-600 py-2 text-sm font-medium text-white">Done</button>
+          </>
+        ) : (
+          <>
+            <p className="mb-4 text-xs text-slate-500">Update your account password below.</p>
+            <div className="space-y-3">
+              <input type="password" placeholder="Current password" value={current} onChange={(e) => setCurrent(e.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+              <input type="password" placeholder="New password" value={next} onChange={(e) => setNext(e.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+              <input type="password" placeholder="Confirm new password" value={confirm} onChange={(e) => setConfirm(e.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+            </div>
+            {error && <p className="mt-2 text-xs text-rose-600">{error}</p>}
+            <div className="mt-4 flex justify-end gap-2">
+              <button onClick={onClose} className="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100">Cancel</button>
+              <button onClick={submit} className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">Update</button>
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }

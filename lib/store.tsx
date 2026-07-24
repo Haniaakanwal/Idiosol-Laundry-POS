@@ -41,9 +41,9 @@ interface StoreValue extends DB {
   removeUser: (userId: string) => void;
   updateUserModules: (userId: string, overrides: Partial<Record<FeatureKey, boolean>>) => void;
   usersFor: (tenantId: string) => TenantUser[];
+  changeStaffPassword: (userId: string, currentPassword: string, newPassword: string) => { ok: true } | { ok: false; error: string };
   reset: () => void;
 }
-
 export interface NewTenantInput {
   name: string;
   slug: string;
@@ -219,8 +219,22 @@ addUser(tenantId, u: { name: string; username: string; password: string; role: U
 updateUserModules(userId, overrides) {
   setDb((prev) => ({ ...prev, users: prev.users.map(u => u.id===userId ? {...u, moduleOverrides: {...u.moduleOverrides, ...overrides}} : u) }));
 },
-      updateUser(userId, patch) {
+   updateUser(userId, patch) {
         setDb((prev) => ({ ...prev, users: prev.users.map((u) => (u.id === userId ? { ...u, ...patch } : u)) }));
+      },
+
+      changeStaffPassword(userId, currentPassword, newPassword) {
+        const user = db.users.find((u) => u.id === userId);
+        if (!user) return { ok: false, error: "Account not found." };
+        if (!bcrypt.compareSync(currentPassword, user.passwordHash)) {
+          return { ok: false, error: "Current password is incorrect." };
+        }
+        const passwordHash = bcrypt.hashSync(newPassword, 10);
+        setDb((prev) => ({
+          ...prev,
+          users: prev.users.map((u) => (u.id === userId ? { ...u, passwordHash, password: newPassword } : u)),
+        }));
+        return { ok: true };
       },
 
       removeUser(userId) {

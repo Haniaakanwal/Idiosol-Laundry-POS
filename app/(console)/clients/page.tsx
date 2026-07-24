@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useStore, NewTenantInput } from "@/lib/store";
+import { COUNTRY_INFO } from "@/lib/country-data";
 import { PLAN_MAP, PLANS } from "@/lib/catalog";
 import { money, num, mb, dateLabel } from "@/lib/format";
 import { TenantStatus, PlanId } from "@/lib/types";
@@ -167,12 +168,25 @@ function ProvisionModal({ open, onClose }: { open: boolean; onClose: () => void 
         <Field label="Owner email">
           <input className={inputCls} value={f.email} onChange={(e) => set("email", e.target.value)} placeholder="jane@brightlaundry.com" />
         </Field>
-        <Field label="Phone">
-          <input className={inputCls} value={f.phone} onChange={(e) => set("phone", e.target.value)} placeholder="+1 555 010 0000" />
+      <Field label="Phone">
+          <input className={inputCls} value={f.phone} onChange={(e) => set("phone", e.target.value)} placeholder={f.country ? `${COUNTRY_INFO[f.country]?.dial ?? "+1"} 555 010 0000` : "+1 555 010 0000"} />
         </Field>
     <Field label="Country">
-  <select className={inputCls} value={f.country} onChange={(e) => set("country", e.target.value)}>
-    <option value="">Select country</option>
+  <select
+    className={inputCls}
+    value={f.country}
+    onChange={(e) => {
+      const country = e.target.value;
+      const info = COUNTRY_INFO[country];
+      setF((p) => ({
+        ...p,
+        country,
+        currency: info?.currency ?? p.currency,
+        // only auto-fill phone if it's still empty or was auto-filled before
+        phone: (!p.phone || Object.values(COUNTRY_INFO).some((c) => p.phone === c.dial + " ")) && info ? `${info.dial} ` : p.phone,
+      }));
+    }}
+  >
     {[
       "Afghanistan","Albania","Algeria","Andorra","Angola","Argentina","Armenia","Australia","Austria","Azerbaijan",
       "Bahamas","Bahrain","Bangladesh","Barbados","Belarus","Belgium","Belize","Benin","Bhutan","Bolivia",
@@ -203,9 +217,9 @@ function ProvisionModal({ open, onClose }: { open: boolean; onClose: () => void 
     ].map((c) => <option key={c}>{c}</option>)}
   </select>
 </Field>
-        <Field label="Currency">
+       <Field label="Currency" hint="Auto-set from country — change anytime">
           <select className={inputCls} value={f.currency} onChange={(e) => set("currency", e.target.value)}>
-            {["USD", "GBP", "EUR", "AED", "SAR", "QAR", "AUD", "MXN", "JPY"].map((c) => <option key={c}>{c}</option>)}
+            {Array.from(new Set(Object.values(COUNTRY_INFO).map((c) => c.currency))).sort().map((c) => <option key={c}>{c}</option>)}
           </select>
         </Field>
         <Field label="Locale">
