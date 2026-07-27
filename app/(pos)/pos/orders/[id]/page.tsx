@@ -129,11 +129,26 @@ export default function OrderDetail() {
                 <MenuItem icon={Wallet} label="Add payment" disabled={o.balance <= 0} onClick={() => { setMenu(false); setAmt(Math.round(o.balance)); setPayOpen(true); }} />
                 <MenuItem icon={Truck} label="Deliver order" disabled={o.status === "Delivered" || o.status === "Cancelled"} onClick={() => { setMenu(false); pos.setOrderStatus(o.id, "Delivered"); flash("Order marked delivered"); }} />
                 <MenuItem icon={Printer} label="Print order" onClick={() => { setMenu(false); window.print(); }} />
-                <MenuItem icon={MessageSquare} label="Custom SMS" onClick={() => { setMenu(false); flash(`SMS queued to ${o.customerName}`); }} />
+              <MenuItem icon={MessageSquare} label="Custom SMS" onClick={() => { setMenu(false); flash(`SMS queued to ${o.customerName}`); }} />
        <MenuItem icon={Send} label="Send order (WhatsApp)" onClick={async () => {
   setMenu(false);
-  const ok = await pos.sendWhatsApp(t.id, o.customerId, o.customerPhone, `Your order ${o.reference} update: ${o.status}`, o.id);
+  const balanceLine = o.balance > 0 ? ` Balance due: ${money(o.balance, cur)}.` : " Fully paid.";
+  const text = `Hi ${o.customerName}, your order ${o.reference} status: ${o.status}.${balanceLine}`;
+  const ok = await pos.sendWhatsApp(t.id, o.customerId, o.customerPhone, text, o.id);
   flash(ok ? `Order ${o.reference} sent to ${o.customerPhone}` : "Failed to send WhatsApp message");
+}} />
+       <MenuItem icon={Send} label="Order complete (WhatsApp)" onClick={async () => {
+  setMenu(false);
+  const balanceLine = o.balance > 0 ? ` Remaining balance: ${money(o.balance, cur)}. Please settle at pickup.` : " Fully paid — thank you!";
+  const text = `Hi ${o.customerName}, your order ${o.reference} is ready! Total: ${money(o.total, cur)}.${balanceLine}`;
+  const ok = await pos.sendWhatsApp(t.id, o.customerId, o.customerPhone, text, o.id);
+  flash(ok ? `Order-complete message sent to ${o.customerPhone}` : "Failed to send WhatsApp message");
+}} />
+       <MenuItem icon={Send} label="Balance reminder (WhatsApp)" disabled={o.balance <= 0} onClick={async () => {
+  setMenu(false);
+  const text = `Hi ${o.customerName}, this is a reminder that order ${o.reference} has a remaining balance of ${money(o.balance, cur)} (Total: ${money(o.total, cur)}). Please settle at your earliest convenience.`;
+  const ok = await pos.sendWhatsApp(t.id, o.customerId, o.customerPhone, text, o.id);
+  flash(ok ? `Balance reminder sent to ${o.customerPhone}` : "Failed to send WhatsApp message");
 }} />
               </div>
             )}

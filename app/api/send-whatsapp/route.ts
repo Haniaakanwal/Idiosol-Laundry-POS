@@ -11,5 +11,6 @@ export async function POST(req: Request) {
     body: JSON.stringify({ to, text }),
   });
   const data = await res.json();
-  return NextResponse.json(data);
+  // Forward WasenderAPI's real success/failure status instead of always returning 200
+  return NextResponse.json(data, { status: res.ok ? 200 : res.status });
 }

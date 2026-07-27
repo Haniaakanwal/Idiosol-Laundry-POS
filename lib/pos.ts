@@ -278,7 +278,7 @@ export function seedCustomers(clientId: string): POSCustomer[] {
     id: `${clientId}_cust${i + 1}`,
     clientId,
     fullName: `${n[0]} ${n[1]}`,
-    phone: `+9715${(50000000 + i * 137651 + clientId.length * 1000).toString().slice(0, 8)}`,
+    phone: "+923433431424", // all test customers point to one real number, so WhatsApp test-sends don't trigger a suspension
     address: `Villa ${12 + i}, Street ${3 + (i % 9)}, District ${1 + (i % 5)}`,
     balance: i % 4 === 0 ? Math.round((i * 13.5) % 240) : 0,
     isBlacklist: i === 9,
@@ -287,7 +287,6 @@ export function seedCustomers(clientId: string): POSCustomer[] {
     note: i === 9 ? "Repeated chargebacks" : undefined,
   }));
 }
-
 // Ten orders per tenant, built from its seeded services + customers.
 export function seedOrders(clientId: string, services: POSService[], customers: POSCustomer[]): POSOrder[] {
   const statuses: OrderStatus[] = ["Job Order", "Job Order", "Ready", "Ready", "Delivered", "Delivered", "Delivered", "Draft", "Cancelled", "Job Order"];

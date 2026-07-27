@@ -155,8 +155,13 @@ useEffect(() => {
         setDb((prev) => ({ ...prev, customers: prev.customers.map((c) => (c.id === id ? { ...c, ...patch } : c)) }));
       },
 async sendWhatsApp(clientId, customerId, to, text, orderId) {
-  const res = await fetch("/api/send-whatsapp", { method: "POST", body: JSON.stringify({ to, text }) });
-  const ok = res.ok;
+  let ok = false;
+  try {
+    const res = await fetch("/api/send-whatsapp", { method: "POST", body: JSON.stringify({ to, text }) });
+    ok = res.ok;
+  } catch {
+    ok = false; // network error, WASENDER_API_KEY missing, etc.
+  }
   const msg: WhatsAppMessage = { id: `wa_${Date.now()}`, clientId, customerId, orderId, text, to, sentAt: new Date().toISOString(), status: ok ? "sent" : "failed" };
   setDb((prev) => ({ ...prev, messages: [msg, ...prev.messages] }));
   return ok;

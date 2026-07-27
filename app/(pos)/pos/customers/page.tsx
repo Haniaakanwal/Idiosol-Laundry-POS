@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useStore } from "@/lib/store";
 import { usePos } from "@/lib/pos-store";
 import { money } from "@/lib/format";
@@ -44,13 +44,16 @@ const [creditFor, setCreditFor] = useState<POSCustomer | null>(null);
           <thead><tr className="border-b border-slate-100 bg-slate-50/60 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
             <th className="px-5 py-3">Name</th><th className="px-4 py-3">Phone</th><th className="px-4 py-3">Orders</th><th className="px-4 py-3">Balance</th><th className="px-4 py-3">Credit</th><th className="px-4 py-3">Flags</th><th className="px-4 py-3"></th>
           </tr></thead>
-          <tbody className="divide-y divide-slate-100">
-            {rows.map((c) => (
-              <tr key={c.id} className="hover:bg-slate-50/60 cursor-pointer" onClick={() => setExpanded(expanded === c.id ? null : c.id)}>
+    <tbody className="divide-y divide-slate-100">
+            {rows.map((c) => {
+              const messages = pos.messagesFor(c.id);
+              return (
+              <React.Fragment key={c.id}>
+              <tr className="hover:bg-slate-50/60 cursor-pointer" onClick={() => setExpanded(expanded === c.id ? null : c.id)}>
                 <td className="px-5 py-3"><div className="font-medium text-slate-900">{c.fullName}</div><div className="text-xs text-slate-400">{c.address}</div></td>
                 <td className="px-4 py-3 text-slate-600">{c.phone}</td>
                <td className="px-4 py-3">
-  <Link href={`/pos/orders?customerId=${c.id}`} className="inline-flex items-center gap-1 text-brand-600 hover:underline">
+  <Link href={`/pos/orders?customerId=${c.id}`} onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1 text-brand-600 hover:underline">
     <ShoppingBag className="h-3.5 w-3.5" /> {orderCount(c.id)}
   </Link>
 </td>
@@ -64,9 +67,33 @@ const [creditFor, setCreditFor] = useState<POSCustomer | null>(null);
                   </button>
                 </td>
                 <td className="px-4 py-3">{c.isBlacklist && <Badge tone="rose">blacklist</Badge>}</td>
-                <td className="px-4 py-3 text-right"><button onClick={() => setEdit(c)} className="text-xs font-medium text-brand-600 hover:underline">Edit</button></td>
+                <td className="px-4 py-3 text-right"><button onClick={(e) => { e.stopPropagation(); setEdit(c); }} className="text-xs font-medium text-brand-600 hover:underline">Edit</button></td>
               </tr>
-            ))}
+              {expanded === c.id && (
+                <tr className="bg-slate-50/60">
+                  <td colSpan={7} className="px-5 py-4">
+                    <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">WhatsApp message history</div>
+                    {messages.length === 0 ? (
+                      <p className="text-sm text-slate-400">No messages sent to this customer yet.</p>
+                    ) : (
+                      <ul className="max-h-56 space-y-2 overflow-y-auto">
+                        {messages.map((m) => (
+                          <li key={m.id} className="flex items-start justify-between gap-4 rounded-lg border border-slate-100 bg-white px-3 py-2">
+                            <div className="min-w-0 flex-1">
+                              <div className="truncate text-sm text-slate-700">{m.text}</div>
+                              <div className="mt-0.5 text-xs text-slate-400">{new Date(m.sentAt).toLocaleString()} · to {m.to}</div>
+                            </div>
+                            <Badge tone={m.status === "sent" ? "emerald" : "rose"}>{m.status}</Badge>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </td>
+                </tr>
+              )}
+              </React.Fragment>
+              );
+            })}
             {rows.length === 0 && <tr><td colSpan={7} className="px-5 py-12 text-center text-sm text-slate-400">No customers match.</td></tr>}
           </tbody>
         </table>
