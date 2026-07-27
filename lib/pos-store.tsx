@@ -146,7 +146,7 @@ useEffect(() => {
 
    addCustomer(c) {
         const id = `${c.clientId}_cust_${db.customers.filter((x) => x.clientId === c.clientId).length + 1}_${c.phone.length}`;
-        const customer: POSCustomer = { ...c, id, balance: 0, createdAt: "todayStr()", creditBalance: 0 };
+        const customer: POSCustomer = { ...c, id, balance: 0, createdAt: todayStr(), creditBalance: 0 };
         setDb((prev) => ({ ...prev, customers: [customer, ...prev.customers] }));
         return customer;
       },
@@ -187,7 +187,7 @@ createOrder(o) {
         const balance = Math.round((totals.total - applied) * 100) / 100;
 
         const payments: POSPayment[] = payAmount > 0
-          ? [{ id: `${id}_p1`, date: "todayStr()", type: o.payment!.type, amount: payAmount, ref: `RCPT-${seq}` }]
+          ? [{ id: `${id}_p1`, date: todayStr(), type: o.payment!.type, amount: payAmount, ref: `RCPT-${seq}` }]
           : [];
       const order: POSOrder = {
           id,
@@ -214,7 +214,7 @@ createOrder(o) {
           payments,
           salesman: o.salesman,
           notes: o.notes,
-          createdAt: "todayStr()",
+          createdAt: todayStr(),
         };
    setDb((prev) => ({
           ...prev,
@@ -245,7 +245,7 @@ addOrderPayment(orderId, type, amount) {
 
     const paid = Math.round((order.paid + applied) * 100) / 100;
     const balance = Math.round((order.total - paid) * 100) / 100;
-    const payment: POSPayment = { id: `${orderId}_p${order.payments.length + 1}`, date: "todayStr()", type, amount: payAmount, ref: `RCPT-${order.reference}` };
+    const payment: POSPayment = { id: `${orderId}_p${order.payments.length + 1}`, date: todayStr(), type, amount: payAmount, ref: `RCPT-${order.reference}` };
 
     return {
       ...prev,
@@ -275,7 +275,7 @@ addCredit(customerId, amount, type) {
     ...prev,
     customers: prev.customers.map((c) => {
       if (c.id !== customerId) return c;
-      const log: CreditLog = { id: `${customerId}_cr${(c.creditLogs?.length ?? 0) + 1}`, date: "todayStr()", type, amount };
+      const log: CreditLog = { id: `${customerId}_cr${(c.creditLogs?.length ?? 0) + 1}`, date: todayStr(), type, amount };
       return { ...c, creditBalance: Math.round((c.creditBalance + amount) * 100) / 100, creditLogs: [log, ...(c.creditLogs ?? [])] };
     }),
   }));
@@ -293,7 +293,7 @@ addCredit(customerId, amount, type) {
             if (!idset.has(o.id) || o.balance <= 0) return o;
             const amt = o.balance;
             custDelta[o.customerId] = (custDelta[o.customerId] ?? 0) + amt;
-            const payment: POSPayment = { id: `${o.id}_p${o.payments.length + 1}`, date: "todayStr()", type, amount: amt, ref: `RCPT-${o.reference}` };
+            const payment: POSPayment = { id: `${o.id}_p${o.payments.length + 1}`, date: todayStr(), type, amount: amt, ref: `RCPT-${o.reference}` };
             return { ...o, paid: o.total, balance: 0, payments: [...o.payments, payment] };
           });
           const customers = prev.customers.map((c) => (custDelta[c.id] ? { ...c, balance: Math.round((c.balance - custDelta[c.id]) * 100) / 100 } : c));

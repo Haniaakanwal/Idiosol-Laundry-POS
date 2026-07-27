@@ -6,9 +6,9 @@ import { useStore } from "@/lib/store";
 import { usePos } from "@/lib/pos-store";
 import { money } from "@/lib/format";
 import {
-  SERVICE_TYPES, HANG_FOLD, DELIVERY_TYPES, PAYMENT_TYPES, PLACEMENTS,
+  SERVICE_TYPES, HANG_FOLD, DELIVERY_TYPES, PAYMENT_TYPES, PLACEMENTS, deliveryTypesFor, hangFoldOptionsFor,  placementsFor,
   ServiceType, HangFold, DeliveryType, PaymentType, Placement, 
-  POSOrderItem, POSCustomer, POSService, lineTotal, computeTotals, isUrgentType,
+  POSOrderItem, POSCustomer, POSService, lineTotal, computeTotals, isUrgentType, paymentMethodsFor
 } from "@/lib/pos";
 import { Card, Button, Field, inputCls, Modal, Badge } from "@/components/ui";
 import { Search, UserPlus, Trash2, Plus, Minus, X, ArrowRight, ArrowLeft, ShoppingCart } from "lucide-react";
@@ -154,9 +154,13 @@ payment: payAmount > 0 ? { type: payType, amount: payAmount } : undefined, taxRa
                   <div className="mb-0.5 text-slate-400">Delivery</div>
                   <input type="date" value={deliveryDate} onChange={(e) => setDeliveryDate(e.target.value)} className="w-full rounded border border-slate-200 px-1.5 py-1 text-xs" />
                 </div>
-                <div>
+             <div>
                   <div className="mb-0.5 text-slate-400">Placement</div>
-                  <select value={placement} onChange={(e) => setPlacement(e.target.value as Placement)} className="w-full rounded border border-slate-200 px-1.5 py-1 text-xs">{PLACEMENTS.map((p) => <option key={p}>{p}</option>)}</select>
+                <select value={placement} onChange={(e) => setPlacement(e.target.value as Placement)} className="w-full rounded border border-slate-200 px-1.5 py-1 text-xs">{placementsFor(t).map((p) => <option key={p}>{p}</option>)}</select>
+                </div>
+                <div>
+                  <div className="mb-0.5 text-slate-400">Delivery type</div>
+                  <select value={deliveryType} onChange={(e) => setDeliveryType(e.target.value as DeliveryType)} className="w-full rounded border border-slate-200 px-1.5 py-1 text-xs">{deliveryTypesFor(t).map((d) => <option key={d}>{d}</option>)}</select>
                 </div>
                 <div>
                   <div className="mb-0.5 text-slate-400">Pickup time</div>
@@ -189,8 +193,8 @@ payment: payAmount > 0 ? { type: payType, amount: payAmount } : undefined, taxRa
                       </div>
                       <div className="mt-1.5 flex items-center justify-between">
                         <div className="flex overflow-hidden rounded-md border border-slate-200">
-                          {HANG_FOLD.map((hf) => (
-                            <button key={hf} onClick={() => setHangFold(it.id, hf)} className={`px-2 py-0.5 text-[11px] font-medium ${it.hangFold === hf ? "bg-brand-600 text-white" : "bg-white text-slate-500"}`}>{hf}</button>
+                        {hangFoldOptionsFor(t).map((hf) => (
+                            <button key={hf} onClick={() => setHangFold(it.id, hf as any)} className={`px-2 py-0.5 text-[11px] font-medium ${it.hangFold === hf ? "bg-brand-600 text-white" : "bg-white text-slate-500"}`}>{hf}</button>
                           ))}
                         </div>
                         <div className="flex items-center gap-2">
@@ -279,7 +283,7 @@ payment: payAmount > 0 ? { type: payType, amount: payAmount } : undefined, taxRa
                   <div className="rounded-lg bg-slate-50 p-3">
                     <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400">Take payment</div>
                     <div className="grid grid-cols-2 gap-2">
-                      <select value={payType} onChange={(e) => setPayType(e.target.value as PaymentType)} className={`${inputCls} py-1.5 text-sm`}>{PAYMENT_TYPES.map((x) => <option key={x}>{x}</option>)}</select>
+                   <select value={payType} onChange={(e) => setPayType(e.target.value as PaymentType)} className={`${inputCls} py-1.5 text-sm`}>{paymentMethodsFor(t).map((x) => <option key={x}>{x}</option>)}</select>
                       <input type="number" min={0} value={payAmount} onChange={(e) => setPayAmount(Math.max(0, parseFloat(e.target.value) || 0))} className={`${inputCls} py-1.5 text-sm`} placeholder="0" />
                     </div>
                     <div className="mt-2 flex items-center justify-between">

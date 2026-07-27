@@ -7,10 +7,9 @@ import { PageHeader } from "@/components/PageHeader";
 import { Card, Badge } from "@/components/ui";
 
 export default function ModulesPage() {
-  const { tenants, ready } = useStore();
+const { tenants, plans, ready } = useStore();
   const live = tenants.filter((t) => t.status !== "churned");
-  const adoption = (key: FeatureKey) => live.filter((t) => isFeatureOn(t.plan, t.featureOverrides, key)).length;
-
+  const adoption = (key: FeatureKey) => live.filter((t) => isFeatureOn(plans, t.plan, t.featureOverrides, key)).length;
   const cats = ["Core", "Finance", "Growth", "Platform"] as const;
 
   return (

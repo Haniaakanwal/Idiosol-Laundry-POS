@@ -93,6 +93,11 @@ logoUrl?: string;
 trn?: string;
 address?: string;
 receiptNote?: string;
+ paymentMethods?: string[];
+ deliveryTypes?: string[];
+   hangFoldOptions?: string[];
+     serviceCategories?: string[];
+     placements?: string[];
 }
 
 

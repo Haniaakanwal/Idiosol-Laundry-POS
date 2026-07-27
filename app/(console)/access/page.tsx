@@ -8,7 +8,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { Card, Toggle, StatusBadge } from "@/components/ui";
 
 export default function AccessPage() {
-  const { tenants, toggleFeature, ready } = useStore();
+  const { tenants, plans, toggleFeature, ready } = useStore();
   if (!ready) return <div className="text-sm text-slate-400">Loading…</div>;
 
   const live = tenants.filter((t) => t.status !== "churned");
@@ -44,7 +44,7 @@ export default function AccessPage() {
                   </Link>
                 </td>
                 {FEATURES.map((f) => {
-                  const on = isFeatureOn(t.plan, t.featureOverrides, f.key as FeatureKey);
+                const on = isFeatureOn(plans, t.plan, t.featureOverrides, f.key as FeatureKey);
                   const overridden = t.featureOverrides[f.key as FeatureKey] !== undefined;
                   return (
                     <td key={f.key} className="px-2 py-2.5 text-center">

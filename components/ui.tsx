@@ -43,8 +43,8 @@ export function Toggle({ on, onChange, disabled }: { on: boolean; onChange: (v: 
   );
 }
 
-export function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <div className={`rounded-xl border border-slate-200 bg-white shadow-sm ${className}`}>{children}</div>;
+export function Card({ children, className = "", onClick }: { children: React.ReactNode; className?: string; onClick?: () => void }) {
+  return <div onClick={onClick} className={`rounded-xl border border-slate-200 bg-white shadow-sm ${className}`}>{children}</div>;
 }
 
 export function Progress({ value, max, tone = "brand" }: { value: number; max: number; tone?: "brand" | "amber" | "rose" }) {

@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import { useStore } from "@/lib/store";
 import { usePos } from "@/lib/pos-store";
 import { money } from "@/lib/format";
-import { ORDER_STATUSES, OrderStatus, DELIVERY_TYPES } from "@/lib/pos";
+import { ORDER_STATUSES, OrderStatus, DELIVERY_TYPES, deliveryTypesFor } from "@/lib/pos";
 import { Card, Button, inputCls } from "@/components/ui";
 import { OrderStatusBadge } from "@/components/pos/bits";
 import { Search, PlusCircle, Wallet, PackageCheck, Truck, MessageSquare, X, CheckCircle2 } from "lucide-react";
@@ -81,7 +81,7 @@ const custFilter = searchParams.get("customerId");
           </select>
           <select value={delivery} onChange={(e) => setDelivery(e.target.value as any)} className={`${inputCls} w-auto`}>
             <option value="All">Delivery: All</option>
-            {DELIVERY_TYPES.map((d) => <option key={d} value={d}>{d}</option>)}
+            {deliveryTypesFor(t).map((d) => <option key={d} value={d}>{d}</option>)}
           </select>
           <label className="flex items-center gap-2 rounded-lg border border-slate-200 px-2.5 py-2 text-sm text-slate-600">
             <input type="checkbox" checked={useDates} onChange={(e) => setUseDates(e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-brand-600" />

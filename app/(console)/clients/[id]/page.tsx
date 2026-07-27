@@ -87,8 +87,9 @@ export default function ClientDetail() {
 }
 
 function OverviewTab({ t }: { t: any }) {
+  const { plans } = useStore();
   const plan = PLAN_MAP[t.plan];
-  const onCount = FEATURES.filter((f) => isFeatureOn(t.plan, t.featureOverrides, f.key)).length;
+  const onCount = FEATURES.filter((f) => isFeatureOn(plans, t.plan, t.featureOverrides, f.key)).length;
   const trialDays = daysUntil(t.trialEndsAt);
  
 const [taxRate, setTaxRate] = useState(t.taxRate);
@@ -96,7 +97,87 @@ const [logoUrl, setLogoUrl] = useState(t.logoUrl ?? "");
 const [trn, setTrn] = useState(t.trn ?? "");
 const [address, setAddress] = useState(t.address ?? "");
 const [receiptNote, setReceiptNote] = useState(t.receiptNote ?? "");
+const [methods, setMethods] = useState<string[]>(t.paymentMethods?.length ? t.paymentMethods : ["Cash", "Card", "EFT"]);
+const [newMethod, setNewMethod] = useState("");
+const [deliveryTypes, setDeliveryTypes] = useState<string[]>(t.deliveryTypes?.length ? t.deliveryTypes : ["Pickup", "Home Delivery"]);
+const [newDeliveryType, setNewDeliveryType] = useState("");
  const { updateTenant } = useStore();
+
+ function addMethod() {
+   const v = newMethod.trim();
+   if (!v || methods.some((m) => m.toLowerCase() === v.toLowerCase())) { setNewMethod(""); return; }
+   const next = [...methods, v];
+   setMethods(next);
+   updateTenant(t.id, { paymentMethods: next });
+   setNewMethod("");
+ }
+ function removeMethod(m: string) {
+   const next = methods.filter((x) => x !== m);
+   setMethods(next);
+   updateTenant(t.id, { paymentMethods: next });
+ }
+ function addDeliveryType() {
+   const v = newDeliveryType.trim();
+   if (!v || deliveryTypes.some((d) => d.toLowerCase() === v.toLowerCase())) { setNewDeliveryType(""); return; }
+   const next = [...deliveryTypes, v];
+   setDeliveryTypes(next);
+   updateTenant(t.id, { deliveryTypes: next });
+   setNewDeliveryType("");
+ }
+function removeDeliveryType(d: string) {
+   if (deliveryTypes.length <= 1) return;
+   const next = deliveryTypes.filter((x) => x !== d);
+   setDeliveryTypes(next);
+   updateTenant(t.id, { deliveryTypes: next });
+ }
+ const [hangFoldOptions, setHangFoldOptions] = useState<string[]>(t.hangFoldOptions?.length ? t.hangFoldOptions : ["Fold", "Hang"]);
+ const [newHangFold, setNewHangFold] = useState("");
+ function addHangFold() {
+   const v = newHangFold.trim();
+   if (!v || hangFoldOptions.some((h) => h.toLowerCase() === v.toLowerCase())) { setNewHangFold(""); return; }
+   const next = [...hangFoldOptions, v];
+   setHangFoldOptions(next);
+   updateTenant(t.id, { hangFoldOptions: next });
+   setNewHangFold("");
+ }
+function removeHangFold(h: string) {
+   if (hangFoldOptions.length <= 1) return;
+   const next = hangFoldOptions.filter((x) => x !== h);
+   setHangFoldOptions(next);
+   updateTenant(t.id, { hangFoldOptions: next });
+ }
+ const [serviceCategories, setServiceCategories] = useState<string[]>(t.serviceCategories?.length ? t.serviceCategories : ["Gents", "Ladies", "Children", "Other"]);
+ const [newCategory, setNewCategory] = useState("");
+ function addCategory() {
+   const v = newCategory.trim();
+   if (!v || serviceCategories.some((c) => c.toLowerCase() === v.toLowerCase())) { setNewCategory(""); return; }
+   const next = [...serviceCategories, v];
+   setServiceCategories(next);
+   updateTenant(t.id, { serviceCategories: next });
+   setNewCategory("");
+ }
+ function removeCategory(c: string) {
+   if (serviceCategories.length <= 1) return;
+   const next = serviceCategories.filter((x) => x !== c);
+   setServiceCategories(next);
+   updateTenant(t.id, { serviceCategories: next });
+ }
+ const [placements, setPlacements] = useState<string[]>(t.placements?.length ? t.placements : ["Cabin", "Cupboard"]);
+ const [newPlacement, setNewPlacement] = useState("");
+ function addPlacement() {
+   const v = newPlacement.trim();
+   if (!v || placements.some((p) => p.toLowerCase() === v.toLowerCase())) { setNewPlacement(""); return; }
+   const next = [...placements, v];
+   setPlacements(next);
+   updateTenant(t.id, { placements: next });
+   setNewPlacement("");
+ }
+ function removePlacement(p: string) {
+   if (placements.length <= 1) return;
+   const next = placements.filter((x) => x !== p);
+   setPlacements(next);
+   updateTenant(t.id, { placements: next });
+ }
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
       <div className="space-y-6 lg:col-span-2">
@@ -155,7 +236,7 @@ const [receiptNote, setReceiptNote] = useState(t.receiptNote ?? "");
                 onBlur={() => updateTenant(t.id, { address })}
               />
             </Field>
-            <Field label="Footer note (on ticket)">
+  <Field label="Footer note (on ticket)">
               <textarea
                 className={inputCls}
                 rows={2}
@@ -167,8 +248,125 @@ const [receiptNote, setReceiptNote] = useState(t.receiptNote ?? "");
             </Field>
           </div>
         </Card>
-      </div>
 
+        <Card className="p-5">
+          <h3 className="mb-1 text-sm font-semibold text-slate-900">Payment methods</h3>
+          <p className="mb-4 text-xs text-slate-500">Shown in every payment dropdown for this client's POS. "Credit" is always available and can't be removed.</p>
+          <div className="mb-3 flex flex-wrap gap-2">
+            {methods.map((m) => (
+              <span key={m} className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
+                {m}
+                <button onClick={() => removeMethod(m)} className="text-slate-400 hover:text-rose-600">×</button>
+              </span>
+            ))}
+            <span className="inline-flex items-center rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">Credit (fixed)</span>
+          </div>
+          <div className="flex gap-2">
+            <input
+              className={inputCls}
+              placeholder="e.g. Bank Transfer"
+              value={newMethod}
+              onChange={(e) => setNewMethod(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") addMethod(); }}
+            />
+       <Button variant="secondary" onClick={addMethod}>Add</Button>
+          </div>
+        </Card>
+
+        <Card className="p-5">
+          <h3 className="mb-1 text-sm font-semibold text-slate-900">Delivery types</h3>
+          <p className="mb-4 text-xs text-slate-500">Shown when creating or filtering orders for this client's POS. At least one must remain.</p>
+          <div className="mb-3 flex flex-wrap gap-2">
+            {deliveryTypes.map((d) => (
+              <span key={d} className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
+                {d}
+                <button onClick={() => removeDeliveryType(d)} className="text-slate-400 hover:text-rose-600">×</button>
+              </span>
+            ))}
+          </div>
+          <div className="flex gap-2">
+            <input
+              className={inputCls}
+              placeholder="e.g. Courier"
+              value={newDeliveryType}
+              onChange={(e) => setNewDeliveryType(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") addDeliveryType(); }}
+            />
+     <Button variant="secondary" onClick={addDeliveryType}>Add</Button>
+          </div>
+        </Card>
+
+        <Card className="p-5">
+          <h3 className="mb-1 text-sm font-semibold text-slate-900">Hang / Fold options</h3>
+          <p className="mb-4 text-xs text-slate-500">Per-item finishing options in New Order. At least one must remain.</p>
+          <div className="mb-3 flex flex-wrap gap-2">
+            {hangFoldOptions.map((h) => (
+              <span key={h} className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
+                {h}
+                <button onClick={() => removeHangFold(h)} className="text-slate-400 hover:text-rose-600">×</button>
+              </span>
+            ))}
+          </div>
+          <div className="flex gap-2">
+            <input
+              className={inputCls}
+              placeholder="e.g. Iron Only"
+              value={newHangFold}
+              onChange={(e) => setNewHangFold(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") addHangFold(); }}
+            />
+      <Button variant="secondary" onClick={addHangFold}>Add</Button>
+          </div>
+        </Card>
+
+        <Card className="p-5">
+          <h3 className="mb-1 text-sm font-semibold text-slate-900">Service categories</h3>
+          <p className="mb-4 text-xs text-slate-500">Groupings shown on the Services & Pricing page. At least one must remain.</p>
+          <div className="mb-3 flex flex-wrap gap-2">
+            {serviceCategories.map((c) => (
+              <span key={c} className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
+                {c}
+                <button onClick={() => removeCategory(c)} className="text-slate-400 hover:text-rose-600">×</button>
+              </span>
+            ))}
+          </div>
+          <div className="flex gap-2">
+            <input
+              className={inputCls}
+              placeholder="e.g. Bedding"
+              value={newCategory}
+              onChange={(e) => setNewCategory(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") addCategory(); }}
+            />
+            <Button variant="secondary" onClick={addCategory}>Add</Button>
+          </div>
+        </Card>
+     
+
+        <Card className="p-5">
+          <h3 className="mb-1 text-sm font-semibold text-slate-900">Placements</h3>
+          <p className="mb-4 text-xs text-slate-500">Storage location options in New Order. At least one must remain.</p>
+          <div className="mb-3 flex flex-wrap gap-2">
+            {placements.map((p) => (
+              <span key={p} className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
+                {p}
+                <button onClick={() => removePlacement(p)} className="text-slate-400 hover:text-rose-600">×</button>
+              </span>
+            ))}
+          </div>
+          <div className="flex gap-2">
+            <input
+              className={inputCls}
+              placeholder="e.g. Rack A"
+              value={newPlacement}
+              onChange={(e) => setNewPlacement(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") addPlacement(); }}
+            />
+            <Button variant="secondary" onClick={addPlacement}>Add</Button>
+          </div>
+        </Card>
+      </div>
+      
       <div className="space-y-6">
         <Card className="p-5">
           <h3 className="mb-3 text-sm font-semibold text-slate-900">Subscription</h3>
@@ -214,7 +412,7 @@ const [receiptNote, setReceiptNote] = useState(t.receiptNote ?? "");
 
 // ---------------------------------------------------------------------------
 function AccessTab({ t }: { t: any }) {
-  const { toggleFeature, clearOverride, setPlan } = useStore();
+  const { plans, toggleFeature, clearOverride, setPlan } = useStore();
   const cats = ["Core", "Finance", "Growth", "Platform"] as const;
 
   return (
@@ -242,7 +440,7 @@ function AccessTab({ t }: { t: any }) {
               {items.map((f) => {
                 const inPlan = (PLAN_MAP[t.plan].features as FeatureKey[]).includes(f.key);
                 const override = t.featureOverrides[f.key];
-                const on = isFeatureOn(t.plan, t.featureOverrides, f.key);
+                const on = isFeatureOn(plans, t.plan, t.featureOverrides, f.key);
                 const overridden = override !== undefined;
                 return (
                   <li key={f.key} className="flex items-center gap-4 px-5 py-3.5">

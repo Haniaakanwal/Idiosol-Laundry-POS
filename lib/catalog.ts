@@ -157,14 +157,23 @@ export const PLANS: Plan[] = [
   },
 ];
 
+
 export const PLAN_MAP: Record<string, Plan> = Object.fromEntries(PLANS.map((p) => [p.id, p]));
 
+// Look up a plan by id from a *live* plans list (falls back to the static
+// catalog if the tenant's store hasn't loaded yet).
+export function planById(plans: Plan[] | undefined, planId: string): Plan | undefined {
+  return plans?.find((p) => p.id === planId) ?? PLAN_MAP[planId];
+}
+
 // Resolve the *effective* access for a tenant: plan defaults + overrides.
+// `plans` should come from useStore() so admin edits to a plan take effect everywhere.
 export function effectiveFeatures(
+  plans: Plan[] | undefined,
   planId: string,
   overrides: Partial<Record<FeatureKey, boolean>>
 ): Record<FeatureKey, boolean> {
-  const plan = PLAN_MAP[planId];
+  const plan = planById(plans, planId);
   const base = new Set(plan?.features ?? []);
   const result = {} as Record<FeatureKey, boolean>;
   for (const f of FEATURES) {
@@ -176,11 +185,12 @@ export function effectiveFeatures(
 }
 
 export function isFeatureOn(
+  plans: Plan[] | undefined,
   planId: string,
   overrides: Partial<Record<FeatureKey, boolean>>,
   key: FeatureKey
 ): boolean {
   const override = overrides[key];
   if (override !== undefined) return override;
-  return (PLAN_MAP[planId]?.features ?? []).includes(key);
+  return (planById(plans, planId)?.features ?? []).includes(key);
 }

@@ -4,6 +4,9 @@ import React, { createContext, useContext, useEffect, useMemo, useState } from "
 import { Tenant, TenantUser, ActivityEvent, FeatureKey, PlanId, TenantStatus, UserRole } from "./types";
 import { SEED_TENANTS, seedUsersFor, SEED_ACTIVITY } from "./mock-data";
 import { generateTempPassword } from "./password";
+import { PLANS } from "./catalog";
+import { Plan } from "./types";
+
 
 const LS_KEY = "laundry-saas-admin:v1";
 
@@ -13,6 +16,7 @@ interface DB {
   activity: ActivityEvent[];
   taxEnabled: false,
 taxRate: 0,
+plans: Plan[];
 }
 
 function seed(): DB {
@@ -23,6 +27,7 @@ function seed(): DB {
     tenants, 
     users, 
     activity: SEED_ACTIVITY,
+    plans: PLANS.map((p) => ({ ...p, features: [...p.features] })),
     taxEnabled: false, 
     taxRate: 0,        
   };
@@ -34,6 +39,7 @@ interface StoreValue extends DB {
   updateTenant: (id: string, patch: Partial<Tenant>) => void;
   setStatus: (id: string, status: TenantStatus) => void;
   setPlan: (id: string, plan: PlanId) => void;
+  updatePlan: (planId: PlanId, patch: Partial<Plan>) => void;
   toggleFeature: (id: string, key: FeatureKey, on: boolean) => void;
   clearOverride: (id: string, key: FeatureKey) => void;
   addUser: (tenantId: string, u: { name: string; username: string; password: string; role: UserRole; department: string }) => void;
@@ -192,8 +198,7 @@ moduleOverrides: {},
           tenants: prev.tenants.map((t) => (t.id === id ? { ...t, featureOverrides: { ...t.featureOverrides, [key]: on } } : t)),
         }));
       },
-
-      clearOverride(id, key) {
+clearOverride(id, key) {
         setDb((prev) => ({
           ...prev,
           tenants: prev.tenants.map((t) => {
@@ -202,6 +207,13 @@ moduleOverrides: {},
             delete next[key];
             return { ...t, featureOverrides: next };
           }),
+        }));
+      },
+
+      updatePlan(planId, patch) {
+        setDb((prev) => ({
+          ...prev,
+          plans: prev.plans.map((p) => (p.id === planId ? { ...p, ...patch } : p)),
         }));
       },
 addUser(tenantId, u: { name: string; username: string; password: string; role: UserRole; department: string }) {

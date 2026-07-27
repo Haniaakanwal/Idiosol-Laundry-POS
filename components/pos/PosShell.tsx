@@ -29,7 +29,7 @@ const NAV: { href: string; label: string; icon: any; feature?: FeatureKey | Feat
 ];
 
 export function PosShell({ children }: { children: React.ReactNode }) {
-  const { tenants, ready } = useStore();
+const { tenants, plans, ready } = useStore();
   const pos = usePos();
   const { session, logout } = useAuth();
   const pathname = usePathname();
@@ -80,7 +80,7 @@ if (!tenant) {
   const enabled = (f?: FeatureKey | FeatureKey[]) => {
     if (!f) return true;
     const keys = Array.isArray(f) ? f : [f];
-    return keys.some((k) => isFeatureOn(tenant.plan, tenant.featureOverrides, k));
+    return keys.some((k) => isFeatureOn(plans, tenant.plan, tenant.featureOverrides, k));
   };
 const role = session?.role === "staff" ? session.userRole : "Owner";
 

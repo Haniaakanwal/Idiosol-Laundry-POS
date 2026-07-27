@@ -10,7 +10,7 @@ import { OrderStatusBadge } from "@/components/pos/bits";
 import { PlusCircle, ClipboardList, Wallet, PackageCheck, Clock } from "lucide-react";
 
 export default function PosDashboard() {
-  const { tenants } = useStore();
+  const { tenants, plans } = useStore();
   const pos = usePos();
   const t = tenants.find((x) => x.id === pos.activeClientId)!;
   const orders = pos.ordersFor(t.id);
@@ -20,7 +20,7 @@ export default function PosDashboard() {
   const outstanding = orders.reduce((s, o) => s + o.balance, 0);
   const ready = orders.filter((o) => o.status === "Ready");
   const active = orders.filter((o) => o.status === "Job Order");
-  const canPOS = isFeatureOn(t.plan, t.featureOverrides, "pos");
+  const canPOS = isFeatureOn(plans, t.plan, t.featureOverrides, "pos");
 
   return (
     <>

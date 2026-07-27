@@ -4,9 +4,11 @@ import { useState } from "react";
 import { useStore } from "@/lib/store";
 import { usePos } from "@/lib/pos-store";
 import { money } from "@/lib/format";
-import { SERVICE_TYPES, SERVICE_CATEGORIES, ServiceCategory, ServiceType, POSService, TYPE_MULT, newServicePrices } from "@/lib/pos";
+import { SERVICE_TYPES, SERVICE_CATEGORIES, ServiceCategory, ServiceType, POSService, TYPE_MULT, newServicePrices, serviceCategoriesFor } from "@/lib/pos";
 import { Card, Button, Badge, Toggle, Modal, Field, inputCls } from "@/components/ui";
 import { Plus, Search } from "lucide-react";
+import { FeatureGate } from "@/components/pos/FeatureGate";
+
 
 export default function ServicesPage() {
   const { tenants } = useStore();
@@ -32,7 +34,7 @@ const [editing, setEditing] = useState<POSService | null>(null);
         </div>
       </Card>
 
-      {SERVICE_CATEGORIES.map((cat) => {
+     {serviceCategoriesFor(t).map((cat) => {
       const items = services.filter((s) => s.category === cat && (!q || s.name.toLowerCase().includes(q.toLowerCase())));
         if (!items.length) return null;
         return (
@@ -81,6 +83,8 @@ function PriceCell({ value, onSave, cur }: { value: number; onSave: (v: number) 
 
 function NewServiceModal({ open, onClose, clientId, cur }: { open: boolean; onClose: () => void; clientId: string; cur: string }) {
   const pos = usePos();
+  const { tenants } = useStore();
+  const tenant = tenants.find((x) => x.id === clientId);
   const [name, setName] = useState("");
   const [nameArabic, setNameArabic] = useState("");
   const [category, setCategory] = useState<ServiceCategory>("Gents");
@@ -91,7 +95,7 @@ function NewServiceModal({ open, onClose, clientId, cur }: { open: boolean; onCl
         <div className="grid grid-cols-2 gap-4">
           <Field label="Name"><input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} /></Field>
           <Field label="Arabic name"><input className={inputCls} dir="rtl" value={nameArabic} onChange={(e) => setNameArabic(e.target.value)} /></Field>
-          <Field label="Category"><select className={inputCls} value={category} onChange={(e) => setCategory(e.target.value as ServiceCategory)}>{SERVICE_CATEGORIES.map((c) => <option key={c}>{c}</option>)}</select></Field>
+<Field label="Category"><select className={inputCls} value={category} onChange={(e) => setCategory(e.target.value as ServiceCategory)}>{serviceCategoriesFor(tenant).map((c) => <option key={c}>{c}</option>)}</select></Field>
           <Field label="Base (Wash & Iron) price" hint="Other types auto-scale from this"><input type="number" className={inputCls} value={base} onChange={(e) => setBase(parseFloat(e.target.value) || 0)} /></Field>
         </div>
         <div className="rounded-lg bg-slate-50 p-3 text-xs text-slate-500">
@@ -110,6 +114,8 @@ function NewServiceModal({ open, onClose, clientId, cur }: { open: boolean; onCl
 }
 function EditServiceModal({ service, onClose }: { service: POSService; onClose: () => void }) {
   const pos = usePos();
+  const { tenants } = useStore();
+  const tenant = tenants.find((x) => x.id === service.clientId);
   const [name, setName] = useState(service.name);
   const [nameArabic, setNameArabic] = useState(service.nameArabic ?? "");
   const [category, setCategory] = useState<ServiceCategory>(service.category);
@@ -118,7 +124,7 @@ function EditServiceModal({ service, onClose }: { service: POSService; onClose: 
       <div className="space-y-4">
         <Field label="Name"><input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} /></Field>
         <Field label="Arabic name"><input className={inputCls} dir="rtl" value={nameArabic} onChange={(e) => setNameArabic(e.target.value)} /></Field>
-        <Field label="Category"><select className={inputCls} value={category} onChange={(e) => setCategory(e.target.value as ServiceCategory)}>{SERVICE_CATEGORIES.map((c) => <option key={c}>{c}</option>)}</select></Field>
+<Field label="Category"><select className={inputCls} value={category} onChange={(e) => setCategory(e.target.value as ServiceCategory)}>{serviceCategoriesFor(tenant).map((c) => <option key={c}>{c}</option>)}</select></Field>
       </div>
       <div className="mt-5 flex justify-end gap-2 border-t border-slate-100 pt-4">
         <Button variant="secondary" onClick={onClose}>Cancel</Button>

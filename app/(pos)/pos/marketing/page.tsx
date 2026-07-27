@@ -21,10 +21,10 @@ const TEMPLATES = [
 ];
 
 export default function MarketingPage() {
-  const { tenants } = useStore();
+const { tenants, plans } = useStore();
   const pos = usePos();
   const t = tenants.find((x) => x.id === pos.activeClientId)!;
-  const channels = CHANNELS.filter((c) => isFeatureOn(t.plan, t.featureOverrides, c.key));
+  const channels = CHANNELS.filter((c) => isFeatureOn(plans, t.plan, t.featureOverrides, c.key));
   const customers = pos.customersFor(t.id);
   const orders = pos.ordersFor(t.id);
 

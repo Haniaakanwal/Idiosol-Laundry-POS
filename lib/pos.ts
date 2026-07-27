@@ -5,13 +5,31 @@
 // garment grid uses the same items staff tap on the counter tablet.
 // Every record is scoped by clientId, like the shared Postgres schema.
 // ---------------------------------------------------------------------------
-
 export const DELIVERY_TYPES = ["Pickup", "Home Delivery"] as const;
-export const HANG_FOLD = ["Fold", "Hang"] as const;
-export const PAYMENT_TYPES = ["Cash", "Card", "EFT", "Credit"] as const;
+export const DEFAULT_DELIVERY_TYPES = ["Pickup", "Home Delivery"];
 export const CREDIT_ADD_METHODS = ["Cash", "Card", "EFT"] as const;
 export type CreditAddMethod = (typeof CREDIT_ADD_METHODS)[number];
+export const DEFAULT_PAYMENT_METHODS = ["Cash", "Card", "EFT"];
+export const PAYMENT_TYPES = ["Cash", "Card", "EFT", "Credit"] as const; // kept for the TS type union
 
+export const HANG_FOLD = ["Fold", "Hang"] as const;
+export const DEFAULT_HANG_FOLD = ["Fold", "Hang"];
+
+// Returns this tenant's hang/fold options (custom if set, else default)
+export function hangFoldOptionsFor(tenant: { hangFoldOptions?: string[] } | null | undefined): string[] {
+  return tenant?.hangFoldOptions?.length ? tenant.hangFoldOptions : DEFAULT_HANG_FOLD;
+}
+// Returns this tenant's delivery types (custom if set, else default)
+export function deliveryTypesFor(tenant: { deliveryTypes?: string[] } | null | undefined): string[] {
+  return tenant?.deliveryTypes?.length ? tenant.deliveryTypes : DEFAULT_DELIVERY_TYPES;
+}
+
+
+// Returns this tenant's payment methods (custom if set, else default) — "Credit" is always appended and can't be removed.
+export function paymentMethodsFor(tenant: { paymentMethods?: string[] } | null | undefined): string[] {
+  const base = tenant?.paymentMethods?.length ? tenant.paymentMethods : DEFAULT_PAYMENT_METHODS;
+  return [...base, "Credit"];
+}
 // The six counter tabs — these are the Services table price columns:
 // price_washAndIron / price_Ironing / price_dryClean / price_dryCleanUrgent /
 // price_ironingUrgent / price_washAndIronUrgent.
@@ -25,10 +43,23 @@ export const SERVICE_TYPES = [
 ] as const;
 
 export const SERVICE_CATEGORIES = ["Gents", "Ladies", "Children", "Other"] as const;
-export const NASHA_TYPES = ["None", "Low", "Medium", "High"] as const; // starch level
-export const PLACEMENTS = ["Cabin", "Cupboard"] as const;
-export const ORDER_STATUSES = ["Draft", "Job Order", "Ready", "Delivered", "Cancelled"] as const;
+export const DEFAULT_SERVICE_CATEGORIES = ["Gents", "Ladies", "Children", "Other"];
 
+// Returns this tenant's service categories (custom if set, else default)
+export function serviceCategoriesFor(tenant: { serviceCategories?: string[] } | null | undefined): string[] {
+  return tenant?.serviceCategories?.length ? tenant.serviceCategories : DEFAULT_SERVICE_CATEGORIES;
+}  
+
+export const NASHA_TYPES = ["None", "Low", "Medium", "High"] as const; // starch level
+
+export const ORDER_STATUSES = ["Draft", "Job Order", "Ready", "Delivered", "Cancelled"] as const;
+export const PLACEMENTS = ["Cabin", "Cupboard"] as const;
+export const DEFAULT_PLACEMENTS = ["Cabin", "Cupboard"];
+
+// Returns this tenant's placements (custom if set, else default)
+export function placementsFor(tenant: { placements?: string[] } | null | undefined): string[] {
+  return tenant?.placements?.length ? tenant.placements : DEFAULT_PLACEMENTS;
+}
 export type DeliveryType = (typeof DELIVERY_TYPES)[number];
 export type HangFold = (typeof HANG_FOLD)[number];
 export type PaymentType = (typeof PAYMENT_TYPES)[number];

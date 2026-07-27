@@ -6,7 +6,7 @@ import { useParams } from "next/navigation";
 import { useStore } from "@/lib/store";
 import { usePos } from "@/lib/pos-store";
 import { money } from "@/lib/format";
-import { STATUS_FLOW, PAYMENT_TYPES, PaymentType  } from "@/lib/pos";
+import { STATUS_FLOW, PAYMENT_TYPES, PaymentType ,paymentMethodsFor } from "@/lib/pos";
 import { Card, Button, Badge, Modal, Field, inputCls } from "@/components/ui";
 import { OrderStatusBadge } from "@/components/pos/bits";
 import { ArrowLeft, Printer, Truck, CheckCircle2, Ban, MoreVertical, Wallet, MessageSquare, Send } from "lucide-react";
@@ -226,7 +226,7 @@ export default function OrderDetail() {
             </div>
           )}
           <div className="grid grid-cols-2 gap-4">
-            <Field label="Method"><select className={inputCls} value={pt} onChange={(e) => setPt(e.target.value as PaymentType)}>{PAYMENT_TYPES.map((x) => <option key={x}>{x}</option>)}</select></Field>
+<Field label="Method"><select className={inputCls} value={pt} onChange={(e) => setPt(e.target.value as PaymentType)}>{paymentMethodsFor(t).map((x) => <option key={x}>{x}</option>)}</select></Field>
             <Field label="Amount"><input type="number" className={inputCls} value={amt} onChange={(e) => setAmt(Math.max(0, parseFloat(e.target.value) || 0))} /></Field>
           </div>
           {amt > o.balance && (
