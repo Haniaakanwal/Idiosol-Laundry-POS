@@ -7,7 +7,7 @@ import { money } from "@/lib/format";
 import { SERVICE_TYPES, SERVICE_CATEGORIES, ServiceCategory, ServiceType, POSService, TYPE_MULT, newServicePrices, serviceCategoriesFor } from "@/lib/pos";
 import { Card, Button, Badge, Toggle, Modal, Field, inputCls } from "@/components/ui";
 import { Plus, Search } from "lucide-react";
-import { FeatureGate } from "@/components/pos/FeatureGate";
+
 
 
 export default function ServicesPage() {
