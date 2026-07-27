@@ -83,7 +83,7 @@ const [creditFor, setCreditFor] = useState<POSCustomer | null>(null);
                               <div className="truncate text-sm text-slate-700">{m.text}</div>
                               <div className="mt-0.5 text-xs text-slate-400">{new Date(m.sentAt).toLocaleString()} · to {m.to}</div>
                             </div>
-                            <Badge tone={m.status === "sent" ? "emerald" : "rose"}>{m.status}</Badge>
+                          <Badge tone={m.status === "sent" ? "green" : "rose"}>{m.status}</Badge>
                           </li>
                         ))}
                       </ul>
