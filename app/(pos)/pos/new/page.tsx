@@ -332,7 +332,16 @@ function AddCustomerModal({ open, onClose, clientId, onCreated }: { open: boolea
       </div>
       <div className="mt-5 flex justify-end gap-2 border-t border-slate-100 pt-4">
         <Button variant="secondary" onClick={onClose}>Cancel</Button>
-        <Button disabled={!f.fullName || !f.phone} onClick={() => { const c = pos.addCustomer({ clientId, isBlacklist: false, ...f }); onCreated(c); setF({ fullName: "", phone: "", address: "" }); }}>Add customer</Button>
+       <Button 
+  disabled={!f.fullName || !f.phone} 
+  onClick={async () => { 
+    const c = await pos.addCustomer({ clientId, isBlacklist: false, ...f }); 
+    onCreated(c); 
+    setF({ fullName: "", phone: "", address: "" }); 
+  }}
+>
+  Add customer
+</Button>
       </div>
     </Modal>
   );
