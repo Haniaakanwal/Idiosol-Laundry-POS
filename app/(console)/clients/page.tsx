@@ -146,13 +146,12 @@ function ProvisionModal({ open, onClose }: { open: boolean; onClose: () => void 
   const autoSlug = (name: string) => name.toLowerCase().replace(/[^a-z0-9]+/g, "").slice(0, 20);
   const valid = f.name && f.slug && f.contactName && f.email;
 
-  function submit() {
+ async function submit() {
     if (!valid) return;
-    addTenant(f);
+    await addTenant(f);
     onClose();
     setF({ name: "", slug: "", contactName: "", email: "", phone: "", country: "", currency: "USD", locale: "en", plan: "starter", trial: true });
   }
-
   return (
     <Modal open={open} onClose={onClose} title="Provision a new client" wide>
       <div className="grid grid-cols-2 gap-4">

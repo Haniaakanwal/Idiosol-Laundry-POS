@@ -29,9 +29,7 @@ function todayStr() {
 function nowTimeStr() {
   return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }); // real system time
 }
-
 interface PosDB {
-  customers: POSCustomer[];
   services: POSService[];
   orders: POSOrder[];
   activeClientId: string | null;
@@ -39,19 +37,16 @@ interface PosDB {
 }
 
 function seed(): PosDB {
-  const customers: POSCustomer[] = [];
   const services: POSService[] = [];
   const orders: POSOrder[] = [];
   for (const t of SEED_TENANTS) {
     const svc = seedServices(t.id);
-    const cust = seedCustomers(t.id);
+    const cust = seedCustomers(t.id); // only used to build realistic seed orders below — real customers now live in Supabase
     services.push(...svc);
-    customers.push(...cust);
     orders.push(...seedOrders(t.id, svc, cust));
   }
-return { customers, services, orders, activeClientId: null, messages: [] };
+return { services, orders, activeClientId: null, messages: [] };
 }
-
 export interface NewOrderInput {
   clientId: string;
   customerId: string;
@@ -71,12 +66,13 @@ export interface NewOrderInput {
 
 interface PosStoreValue extends PosDB {
   ready: boolean;
+  customers: POSCustomer[];
   setActiveClient: (id: string | null) => void;
   customersFor: (clientId: string) => POSCustomer[];
   servicesFor: (clientId: string) => POSService[];
   ordersFor: (clientId: string) => POSOrder[];
   orderById: (id: string) => POSOrder | undefined;
-addCustomer: (c: Omit<POSCustomer, "id" | "balance" | "createdAt" | "creditBalance">) => POSCustomer;
+addCustomer: (c: Omit<POSCustomer, "id" | "balance" | "createdAt" | "creditBalance">) => Promise<POSCustomer>;
 sendWhatsApp: (clientId: string, customerId: string, to: string, text: string, orderId?: string) => Promise<boolean>;
 messagesFor: (customerId: string) => WhatsAppMessage[];
   updateCustomer: (id: string, patch: Partial<POSCustomer>) => void;
@@ -98,7 +94,16 @@ const Ctx = createContext<PosStoreValue | null>(null);
 
 export function PosStoreProvider({ children }: { children: React.ReactNode }) {
   const [db, setDb] = useState<PosDB>(() => seed());
+  const [customers, setCustomers] = useState<POSCustomer[]>([]);
   const [ready, setReady] = useState(false);
+
+  // Load customers from the real database (Supabase via Prisma).
+  useEffect(() => {
+    fetch("/api/customers")
+      .then((r) => r.json())
+      .then((data) => setCustomers(data))
+      .catch(() => {});
+  }, []);
 
 useEffect(() => {
     try {
@@ -122,10 +127,11 @@ useEffect(() => {
     }
   }, [db, ready]);
 
-  const value = useMemo<PosStoreValue>(() => {
+const value = useMemo<PosStoreValue>(() => {
     return {
       ...db,
       ready,
+      customers,
 
       setActiveClient(id) {
         setDb((prev) => {
@@ -138,21 +144,29 @@ useEffect(() => {
           return { ...prev, services, activeClientId: id };
         });
       },
-
-      customersFor: (clientId) => db.customers.filter((c) => c.clientId === clientId),
+customersFor: (clientId) => customers.filter((c) => c.clientId === clientId),
       servicesFor: (clientId) => db.services.filter((s) => s.clientId === clientId),
       ordersFor: (clientId) => db.orders.filter((o) => o.clientId === clientId),
       orderById: (id) => db.orders.find((o) => o.id === id),
 
-   addCustomer(c) {
-        const id = `${c.clientId}_cust_${db.customers.filter((x) => x.clientId === c.clientId).length + 1}_${c.phone.length}`;
-        const customer: POSCustomer = { ...c, id, balance: 0, createdAt: todayStr(), creditBalance: 0 };
-        setDb((prev) => ({ ...prev, customers: [customer, ...prev.customers] }));
+   async addCustomer(c) {
+        const res = await fetch("/api/customers", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(c),
+        });
+        const customer: POSCustomer = await res.json();
+        setCustomers((prev) => [customer, ...prev]);
         return customer;
       },
 
       updateCustomer(id, patch) {
-        setDb((prev) => ({ ...prev, customers: prev.customers.map((c) => (c.id === id ? { ...c, ...patch } : c)) }));
+        setCustomers((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
+        fetch(`/api/customers/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(patch),
+        }).catch(() => {});
       },
 async sendWhatsApp(clientId, customerId, to, text, orderId) {
   let ok = false;
@@ -180,8 +194,7 @@ createOrder(o) {
         const seq = 1040 + existing.length + 1;
 
         const id = `${o.clientId}_ord_${seq}`;
-
-        const customer = db.customers.find((c) => c.id === o.customerId);
+const customer = customers.find((c) => c.id === o.customerId);
         const isCredit = o.payment?.type === "Credit";
         const rawAmount = o.payment?.amount ?? 0;
         const payAmount = isCredit ? Math.min(rawAmount, customer?.creditBalance ?? 0) : rawAmount;
@@ -221,52 +234,67 @@ createOrder(o) {
           notes: o.notes,
           createdAt: todayStr(),
         };
-   setDb((prev) => ({
-          ...prev,
-          orders: [order, ...prev.orders],
-          customers: prev.customers.map((c) => {
-            if (c.id !== o.customerId) return c;
-            const creditDelta = isCredit ? -applied : overpay;
-            return { ...c, balance: Math.round((c.balance + balance) * 100) / 100, creditBalance: Math.round((c.creditBalance + creditDelta) * 100) / 100 };
-          }),
+setDb((prev) => ({ ...prev, orders: [order, ...prev.orders] }));
+        setCustomers((prev) => prev.map((c) => {
+          if (c.id !== o.customerId) return c;
+          const creditDelta = isCredit ? -applied : overpay;
+          const newBalance = Math.round((c.balance + balance) * 100) / 100;
+          const newCredit = Math.round((c.creditBalance + creditDelta) * 100) / 100;
+          fetch(`/api/customers/${c.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ balance: newBalance, creditBalance: newCredit }),
+          }).catch(() => {});
+          return { ...c, balance: newBalance, creditBalance: newCredit };
         }));
         return order;
       },
       setOrderStatus(id, status) {
         setDb((prev) => ({ ...prev, orders: prev.orders.map((o) => (o.id === id ? { ...o, status } : o)) }));
       },
-addOrderPayment(orderId, type, amount) {
-  setDb((prev) => {
-    const order = prev.orders.find((o) => o.id === orderId);
-    if (!order) return prev;
-    const customer = prev.customers.find((c) => c.id === order.customerId);
-    const isCredit = type === "Credit";
-    // paying "with Credit" can never exceed what the customer actually has
-    const payAmount = isCredit ? Math.min(amount, customer?.creditBalance ?? 0) : amount;
+      addOrderPayment(orderId, type, amount) {
+  const order = db.orders.find((o) => o.id === orderId);
+  if (!order) return;
+  const customer = customers.find((c) => c.id === order.customerId);
+  const isCredit = type === "Credit";
+  const payAmount = isCredit ? Math.min(amount, customer?.creditBalance ?? 0) : amount;
 
-    const dueBefore = order.balance;
-    const applied = Math.min(payAmount, dueBefore); // portion that goes to this order
-    const overpay = isCredit ? 0 : Math.max(0, payAmount - dueBefore); // credit payments never create more credit
+  const dueBefore = order.balance;
+  const applied = Math.min(payAmount, dueBefore);
+  const overpay = isCredit ? 0 : Math.max(0, payAmount - dueBefore);
 
-    const paid = Math.round((order.paid + applied) * 100) / 100;
-    const balance = Math.round((order.total - paid) * 100) / 100;
-    const payment: POSPayment = { id: `${orderId}_p${order.payments.length + 1}`, date: todayStr(), type, amount: payAmount, ref: `RCPT-${order.reference}` };
+  const paid = Math.round((order.paid + applied) * 100) / 100;
+  const balance = Math.round((order.total - paid) * 100) / 100;
+  const payment: POSPayment = { id: `${orderId}_p${order.payments.length + 1}`, date: todayStr(), type, amount: payAmount, ref: `RCPT-${order.reference}` };
 
-    return {
-      ...prev,
-      orders: prev.orders.map((o) => (o.id === orderId ? { ...o, paid, balance, payments: [...o.payments, payment] } : o)),
-      customers: prev.customers.map((c) => {
-        if (c.id !== order.customerId) return c;
-        const creditDelta = isCredit ? -applied : overpay;
-        return { ...c, balance: Math.round((c.balance - applied) * 100) / 100, creditBalance: Math.round((c.creditBalance + creditDelta) * 100) / 100 };
-      }),
-    };
-  });
-},
-useCredit(customerId, amount) {
   setDb((prev) => ({
     ...prev,
-    customers: prev.customers.map((c) => (c.id === customerId ? { ...c, creditBalance: Math.round((c.creditBalance - amount) * 100) / 100 } : c)),
+    orders: prev.orders.map((o) => (o.id === orderId ? { ...o, paid, balance, payments: [...o.payments, payment] } : o)),
+  }));
+
+  setCustomers((prev) => prev.map((c) => {
+    if (c.id !== order.customerId) return c;
+    const creditDelta = isCredit ? -applied : overpay;
+    const newBalance = Math.round((c.balance - applied) * 100) / 100;
+    const newCredit = Math.round((c.creditBalance + creditDelta) * 100) / 100;
+    fetch(`/api/customers/${c.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ balance: newBalance, creditBalance: newCredit }),
+    }).catch(() => {});
+    return { ...c, balance: newBalance, creditBalance: newCredit };
+  }));
+},
+useCredit(customerId, amount) {
+  setCustomers((prev) => prev.map((c) => {
+    if (c.id !== customerId) return c;
+    const newCredit = Math.round((c.creditBalance - amount) * 100) / 100;
+    fetch(`/api/customers/${c.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ creditBalance: newCredit }),
+    }).catch(() => {});
+    return { ...c, creditBalance: newCredit };
   }));
 },
 balanceFor(customerId) {
@@ -276,13 +304,16 @@ balanceFor(customerId) {
   return Math.round(total * 100) / 100;
 },
 addCredit(customerId, amount, type) {
-  setDb((prev) => ({
-    ...prev,
-    customers: prev.customers.map((c) => {
-      if (c.id !== customerId) return c;
-      const log: CreditLog = { id: `${customerId}_cr${(c.creditLogs?.length ?? 0) + 1}`, date: todayStr(), type, amount };
-      return { ...c, creditBalance: Math.round((c.creditBalance + amount) * 100) / 100, creditLogs: [log, ...(c.creditLogs ?? [])] };
-    }),
+  setCustomers((prev) => prev.map((c) => {
+    if (c.id !== customerId) return c;
+    const log: CreditLog = { id: `${customerId}_cr${(c.creditLogs?.length ?? 0) + 1}`, date: todayStr(), type, amount };
+    const newCredit = Math.round((c.creditBalance + amount) * 100) / 100;
+    fetch(`/api/customers/${c.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ creditBalance: newCredit }),
+    }).catch(() => {});
+    return { ...c, creditBalance: newCredit, creditLogs: [log, ...(c.creditLogs ?? [])] };
   }));
 },
       bulkStatus(ids, status) {
@@ -292,8 +323,8 @@ addCredit(customerId, amount, type) {
 
       bulkPay(ids, type) {
         const idset = new Set(ids);
+        const custDelta: Record<string, number> = {};
         setDb((prev) => {
-          const custDelta: Record<string, number> = {};
           const orders = prev.orders.map((o) => {
             if (!idset.has(o.id) || o.balance <= 0) return o;
             const amt = o.balance;
@@ -301,20 +332,28 @@ addCredit(customerId, amount, type) {
             const payment: POSPayment = { id: `${o.id}_p${o.payments.length + 1}`, date: todayStr(), type, amount: amt, ref: `RCPT-${o.reference}` };
             return { ...o, paid: o.total, balance: 0, payments: [...o.payments, payment] };
           });
-          const customers = prev.customers.map((c) => (custDelta[c.id] ? { ...c, balance: Math.round((c.balance - custDelta[c.id]) * 100) / 100 } : c));
-          return { ...prev, orders, customers };
+          return { ...prev, orders };
         });
+        setCustomers((prev) => prev.map((c) => {
+          if (!custDelta[c.id]) return c;
+          const newBalance = Math.round((c.balance - custDelta[c.id]) * 100) / 100;
+          fetch(`/api/customers/${c.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ balance: newBalance }),
+          }).catch(() => {});
+          return { ...c, balance: newBalance };
+        }));
       },
 
       reset() {
         setDb(seed());
       },
     };
-  }, [db, ready]);
+}, [db, ready, customers]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
-
 export function usePos() {
   const ctx = useContext(Ctx);
   if (!ctx) throw new Error("usePos must be used within PosStoreProvider");
