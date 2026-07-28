@@ -28,6 +28,7 @@ function seed(): DB {
 interface StoreValue extends DB {
   ready: boolean;
   tenants: Tenant[];
+  users: TenantUser[];
   addTenant: (t: NewTenantInput) => Promise<Tenant>;
   updateTenant: (id: string, patch: Partial<Tenant>) => void;
   setStatus: (id: string, status: TenantStatus) => void;
