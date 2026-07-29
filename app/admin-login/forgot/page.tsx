@@ -8,7 +8,7 @@ export default function ForgotAdminPassword() {
   const [msg, setMsg] = useState("");
 
   async function submit() {
-    const res = resetAdminPassword(email);
+    const res = await resetAdminPassword(email);
     if (!res.ok) { setMsg(res.error); return; }
     await fetch("/api/send-credentials", {
       method: "POST",
