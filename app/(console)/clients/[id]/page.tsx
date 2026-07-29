@@ -23,7 +23,7 @@ export default function ClientDetail() {
   const pos = usePos();
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("Overview");
-const { updateTenant, setStatus } = useStore();
+
 
   if (!store.ready) return <div className="text-sm text-slate-400">Loading…</div>;
   const t = store.tenants.find((x) => x.id === id);
@@ -103,7 +103,7 @@ const [newMethod, setNewMethod] = useState("");
 const [deliveryTypes, setDeliveryTypes] = useState<string[]>(t.deliveryTypes?.length ? t.deliveryTypes : ["Pickup", "Home Delivery"]);
 const [newDeliveryType, setNewDeliveryType] = useState("");
  const { updateTenant } = useStore();
-
+const { tenants, setStatus, ready } = useStore();
  function addMethod() {
    const v = newMethod.trim();
    if (!v || methods.some((m) => m.toLowerCase() === v.toLowerCase())) { setNewMethod(""); return; }
