@@ -74,11 +74,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [users, setUsers] = useState<TenantUser[]>([]);
   const [ready, setReady] = useState(false);
 
-  // Load tenants from the real database (Supabase via Prisma).
-  useEffect(() => {
+useEffect(() => {
     fetch("/api/tenants")
-      .then((r) => r.json())
-      .then((data) => setTenants(data))
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data) => setTenants(Array.isArray(data) ? data : []))
       .catch(() => {
         /* leave tenants empty on failure */
       });
@@ -103,12 +102,10 @@ const [plans, setPlans] = useState<Plan[]>([]);
         /* leave activity empty on failure */
       });
   }, []);
-
-  // Load staff users from the real database (Supabase via Prisma).
-  useEffect(() => {
+useEffect(() => {
     fetch("/api/tenant-users")
-      .then((r) => r.json())
-      .then((data) => setUsers(data))
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data) => setUsers(Array.isArray(data) ? data : []))
       .catch(() => {
         /* leave users empty on failure */
       });

@@ -81,8 +81,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { ok: true, tempPassword: body.tempPassword };
       },
 
-      logout() {
+     logout() {
         setSession(null);
+        fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
       },
     }),
     [session, ready]

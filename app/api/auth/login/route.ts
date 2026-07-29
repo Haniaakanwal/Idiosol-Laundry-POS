@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
+import { signSession } from "@/lib/session";
 
 export async function POST(req: Request) {
   const { email, password } = await req.json();
@@ -11,10 +12,18 @@ export async function POST(req: Request) {
     if (!bcrypt.compareSync(password, admin.passwordHash)) {
       return NextResponse.json({ ok: false, error: "Incorrect password." }, { status: 401 });
     }
-    return NextResponse.json({
+    const res = NextResponse.json({
       ok: true,
       session: { role: "admin", name: admin.name, email: admin.email, mustReset: admin.mustReset },
     });
+    res.cookies.set("session", await signSession({ id: admin.id, role: "admin" }), {
+      httpOnly: true,
+      secure: true,
+      sameSite: "lax",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 7, // 7 days
+    });
+    return res;
   }
 
   const staff = await prisma.tenantUser.findFirst({
@@ -24,8 +33,16 @@ export async function POST(req: Request) {
   if (!bcrypt.compareSync(password, staff.passwordHash)) {
     return NextResponse.json({ ok: false, error: "Incorrect password." }, { status: 401 });
   }
-  return NextResponse.json({
+  const res = NextResponse.json({
     ok: true,
     session: { role: "staff", tenantId: staff.tenantId, name: staff.name, email: staff.email, userRole: staff.role },
   });
+  res.cookies.set("session", await signSession({ id: staff.id, role: "staff" }), {
+    httpOnly: true,
+    secure: true,
+    sameSite: "lax",
+    path: "/",
+    maxAge: 60 * 60 * 24 * 7,
+  });
+  return res;
 }

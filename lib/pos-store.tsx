@@ -101,10 +101,10 @@ const [customers, setCustomers] = useState<POSCustomer[]>([]);
 const [servicesLoaded, setServicesLoaded] = useState(false);
 
 // Load services from the real database (Supabase via Prisma).
-  useEffect(() => {
+useEffect(() => {
     fetch("/api/services")
-      .then((r) => r.json())
-      .then((data) => setServices(data))
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data) => setServices(Array.isArray(data) ? data : []))
       .catch(() => {})
       .finally(() => setServicesLoaded(true));
   }, []);
@@ -137,13 +137,13 @@ const [servicesLoaded, setServicesLoaded] = useState(false);
     if (!ready || !servicesLoaded || !id) return;
     if (services.some((s) => s.clientId === id)) return;
     const starter = seedServices(id).map(({ id: _drop, clientId: _drop2, ...rest }) => rest);
-    fetch("/api/services/seed", {
+   fetch("/api/services/seed", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ tenantId: id, services: starter }),
     })
-      .then((r) => r.json())
-      .then((created) => setServices((prev) => [...prev, ...created]))
+      .then((r) => (r.ok ? r.json() : []))
+      .then((created) => setServices((prev) => [...prev, ...(Array.isArray(created) ? created : [])]))
       .catch(() => {});
   }, [db.activeClientId, ready, servicesLoaded, services]);
 
