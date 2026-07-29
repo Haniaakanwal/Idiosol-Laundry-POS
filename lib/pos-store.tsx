@@ -137,13 +137,17 @@ useEffect(() => {
     if (!ready || !servicesLoaded || !id) return;
     if (services.some((s) => s.clientId === id)) return;
     const starter = seedServices(id).map(({ id: _drop, clientId: _drop2, ...rest }) => rest);
-   fetch("/api/services/seed", {
+ fetch("/api/services/seed", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ tenantId: id, services: starter }),
     })
       .then((r) => (r.ok ? r.json() : []))
-      .then((created) => setServices((prev) => [...prev, ...(Array.isArray(created) ? created : [])]))
+      .then((created) => {
+        if (Array.isArray(created) && created.length > 0) {
+          setServices((prev) => [...prev, ...created]);
+        }
+      })
       .catch(() => {});
   }, [db.activeClientId, ready, servicesLoaded, services]);
 
