@@ -23,6 +23,7 @@ export default function ClientDetail() {
   const pos = usePos();
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("Overview");
+const { updateTenant, setStatus } = useStore();
 
   if (!store.ready) return <div className="text-sm text-slate-400">Loading…</div>;
   const t = store.tenants.find((x) => x.id === id);
@@ -391,8 +392,8 @@ function removeHangFold(h: string) {
             <div className="text-lg font-semibold text-slate-900">{plan.name}</div>
             <div className="text-sm text-slate-500">{money(plan.priceMonthly, t.currency)}/mo · {plan.blurb}</div>
           </div>
-        {t.status === "trial" && (
-  <button onClick={() => updateTenant(t.id, { status: "active", mrr: PLAN_MAP[t.plan].priceMonthly })} className="mt-2 w-full rounded-lg bg-brand-600 py-2 text-sm font-medium text-white">
+          {t.status === "trial" && (
+  <button onClick={() => setStatus(t.id, "active")} className="mt-2 w-full rounded-lg bg-brand-600 py-2 text-sm font-medium text-white">
     End trial now
   </button>
 )}

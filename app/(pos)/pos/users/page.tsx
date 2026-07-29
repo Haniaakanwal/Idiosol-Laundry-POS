@@ -23,7 +23,7 @@ const tenantId = pos.activeClientId!;
   const [editingPw, setEditingPw] = useState<string | null>(null);
 const [pwValue, setPwValue] = useState("");
   const [nu, setNu] = useState({ name: "", username: "", password: "", role: "Cashier" as UserRole, department: "" });
-
+const [error, setError] = useState<string | null>(null);
   return (
     <>
       <div className="mb-5 flex items-center justify-between">
@@ -105,9 +105,24 @@ const [pwValue, setPwValue] = useState("");
             <Field label="Department"><input className={inputCls} value={nu.department} onChange={(e) => setNu({ ...nu, department: e.target.value })} /></Field>
           </div>
         </div>
-        <div className="mt-5 flex justify-end gap-2 border-t border-slate-100 pt-4">
+       {error && <p className="mt-3 text-sm text-rose-600">{error}</p>}
+   <div className="mt-5 flex justify-end gap-2 border-t border-slate-100 pt-4">
           <Button variant="secondary" onClick={() => setOpen(false)}>Cancel</Button>
-          <Button disabled={!nu.name || !nu.username || !nu.password} onClick={() => { addUser(tenantId, nu); setOpen(false); setNu({ name: "", username: "", password: "", role: "Cashier", department: "" }); }}>Add</Button>
+          <Button
+            disabled={!nu.name || !nu.username || !nu.password}
+            onClick={async () => {
+              const result = await addUser(tenantId, nu);
+              if (!result.ok) {
+                setError(result.error);
+                return;
+              }
+              setOpen(false);
+              setError(null);
+              setNu({ name: "", username: "", password: "", role: "Cashier", department: "" });
+            }}
+          >
+            Add
+          </Button>
         </div>
       </Modal>
     </>

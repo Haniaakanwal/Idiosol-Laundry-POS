@@ -6,7 +6,7 @@ import { useAuth } from "@/lib/auth-store";
 import { Waves, LogIn } from "lucide-react";
 
 export default function LoginPage() {
- const { login, session, ready, isAdminEmail, logout } = useAuth();
+const { login, session, ready, logout } = useAuth();
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -21,14 +21,15 @@ export default function LoginPage() {
     if (session?.role === "staff") router.replace("/");
   }, [ready, session, router, logout]);
 
-  function submit(e?: React.FormEvent) {
+async function submit(e?: React.FormEvent) {
     e?.preventDefault();
-    if (isAdminEmail(email)) {
+    const res = await login(email, password);
+    if (!res.ok) { setError(res.error); return; }
+    if (res.session.role === "admin") {
+      logout();
       setError("This is the platform admin account — please use the Admin sign in page.");
       return;
     }
-    const res = login(email, password);
-    if (!res.ok) { setError(res.error); return; }
     router.replace("/");
   }
 

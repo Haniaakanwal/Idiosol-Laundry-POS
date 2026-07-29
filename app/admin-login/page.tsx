@@ -16,12 +16,11 @@ export default function AdminLoginPage() {
     if (ready && session?.role === "admin") router.replace("/");
   }, [ready, session, router]);
 
-  function submit() {
-    const res = login(email, password);
+  async function submit() {
+    const res = await login(email, password);
     if (!res.ok) { setError(res.error); return; }
     router.replace("/"); // root page + RequireAdmin guard route correctly (incl. mustReset)
   }
-
   return (
     <div className="mx-auto max-w-sm py-24 px-6">
       <h1 className="text-xl font-semibold mb-1">Idiosol Admin</h1>

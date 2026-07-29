@@ -9,26 +9,21 @@ import { Plan } from "./types";
 
 
 const LS_KEY = "laundry-saas-admin:v1";
-
 interface DB {
-  activity: ActivityEvent[];
-  taxEnabled: false,
-taxRate: 0,
-plans: Plan[];
+  users: TenantUser[];
 }
 function seed(): DB {
+  const users = SEED_TENANTS.flatMap((t) => seedUsersFor(t));
+  
   return { 
-    activity: SEED_ACTIVITY,
-    plans: PLANS.map((p) => ({ ...p, features: [...p.features] })),
-    taxEnabled: false, 
-    taxRate: 0,        
+    users, 
   };
 }
-
 interface StoreValue extends DB {
   ready: boolean;
   tenants: Tenant[];
-  users: TenantUser[];
+  plans: Plan[];
+  activity: ActivityEvent[];
   addTenant: (t: NewTenantInput) => Promise<Tenant>;
   updateTenant: (id: string, patch: Partial<Tenant>) => void;
   setStatus: (id: string, status: TenantStatus) => void;
@@ -36,7 +31,7 @@ interface StoreValue extends DB {
   updatePlan: (planId: PlanId, patch: Partial<Plan>) => void;
   toggleFeature: (id: string, key: FeatureKey, on: boolean) => void;
   clearOverride: (id: string, key: FeatureKey) => void;
- addUser: (tenantId: string, u: { name: string; username: string; password: string; role: UserRole; department: string }) => Promise<void>;
+addUser: (tenantId: string, u: { name: string; username: string; password: string; role: UserRole; department: string }) => Promise<{ ok: true } | { ok: false; error: string }>;
   updateUser: (userId: string, patch: Partial<TenantUser>) => void;
   removeUser: (userId: string) => void;
   updateUserModules: (userId: string, overrides: Partial<Record<FeatureKey, boolean>>) => void;
@@ -59,12 +54,17 @@ export interface NewTenantInput {
 
 const StoreCtx = createContext<StoreValue | null>(null);
 
-function logEvent(db: DB, e: Omit<ActivityEvent, "id" | "at">): ActivityEvent {
+function logEvent(e: Omit<ActivityEvent, "id" | "at">): ActivityEvent {
   const ev: ActivityEvent = {
     ...e,
-    id: `a_${db.activity.length + 1}_${e.tenantId}`,
-    at: "2026-07-03T09:00:00", // fixed clock — no Date.now() in prototype seed
+    id: `local_${Date.now()}`,
+    at: new Date().toISOString(),
   };
+  fetch("/api/activity", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(e),
+  }).catch(() => {});
   return ev;
 }
 
@@ -81,6 +81,26 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       .then((data) => setTenants(data))
       .catch(() => {
         /* leave tenants empty on failure */
+      });
+  }, []);
+
+const [plans, setPlans] = useState<Plan[]>([]);
+  useEffect(() => {
+    fetch("/api/plans")
+      .then((r) => r.json())
+      .then((data) => setPlans(data))
+      .catch(() => {
+        /* leave plans empty on failure */
+      });
+  }, []);
+
+  const [activity, setActivity] = useState<ActivityEvent[]>([]);
+  useEffect(() => {
+    fetch("/api/activity")
+      .then((r) => r.json())
+      .then((data) => setActivity(data))
+      .catch(() => {
+        /* leave activity empty on failure */
       });
   }, []);
 
@@ -117,11 +137,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   }, [db, ready]);
 
 const value = useMemo<StoreValue>(() => {
-    return {
+ return {
       ...db,
       ready,
       tenants,
-      users,
+      plans,
+      activity,
 
       async addTenant(input) {
         const tempPassword = generateTempPassword();
@@ -168,13 +189,11 @@ const value = useMemo<StoreValue>(() => {
           }),
         });
         const owner: TenantUser = await userRes.json();
-
+ setUsers((prev) => [{ ...owner, password: tempPassword }, ...prev]);
         setTenants((prev) => [tenant, ...prev]);
-        setUsers((prev) => [{ ...owner, password: tempPassword }, ...prev]);
-        setDb((prev) => ({
-          ...prev,
-          activity: [logEvent(prev, { tenantId: tenant.id, tenantName: input.name, kind: "signup", message: input.trial ? "Provisioned (trial)" : "Provisioned" }), ...prev.activity],
-        }));
+        const ev = logEvent({ tenantId: tenant.id, tenantName: input.name, kind: "signup", message: input.trial ? "Provisioned (trial)" : "Provisioned" });
+        setActivity((prev) => [ev, ...prev]);
+        setDb((prev) => ({ ...prev, users: [owner, ...prev.users] }));
         return tenant;
       },
     updateTenant(id, patch) {
@@ -190,11 +209,11 @@ const value = useMemo<StoreValue>(() => {
         const t = tenants.find((x) => x.id === id);
         const kind = status === "suspended" ? "suspend" : status === "active" ? "reactivate" : status === "churned" ? "downgrade" : "signup";
         const newMrr = t ? (status === "active" || status === "suspended" ? t.mrr : 0) : 0;
-        setTenants((prev) => prev.map((x) => (x.id === id ? { ...x, status, mrr: newMrr } : x)));
-        setDb((prev) => ({
-          ...prev,
-          activity: t ? [logEvent(prev, { tenantId: id, tenantName: t.name, kind, message: `Status changed to ${status}` }), ...prev.activity] : prev.activity,
-        }));
+     setTenants((prev) => prev.map((x) => (x.id === id ? { ...x, status, mrr: newMrr } : x)));
+        if (t) {
+          const ev = logEvent({ tenantId: id, tenantName: t.name, kind, message: `Status changed to ${status}` });
+          setActivity((prev) => [ev, ...prev]);
+        }
         fetch(`/api/tenants/${id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
@@ -206,11 +225,11 @@ const value = useMemo<StoreValue>(() => {
         const t = tenants.find((x) => x.id === id);
         const kind = t && planPrice(plan) > planPrice(t.plan) ? "upgrade" : "downgrade";
         const newMrr = t ? (t.status === "trial" ? 0 : planPrice(plan)) : 0;
-        setTenants((prev) => prev.map((x) => (x.id === id ? { ...x, plan, mrr: newMrr } : x)));
-        setDb((prev) => ({
-          ...prev,
-          activity: t ? [logEvent(prev, { tenantId: id, tenantName: t.name, kind, message: `Plan changed to ${plan}` }), ...prev.activity] : prev.activity,
-        }));
+      setTenants((prev) => prev.map((x) => (x.id === id ? { ...x, plan, mrr: newMrr } : x)));
+        if (t) {
+          const ev = logEvent({ tenantId: id, tenantName: t.name, kind, message: `Plan changed to ${plan}` });
+          setActivity((prev) => [ev, ...prev]);
+        }
         fetch(`/api/tenants/${id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
@@ -247,14 +266,16 @@ const value = useMemo<StoreValue>(() => {
         );
       },
 
-      updatePlan(planId, patch) {
-        setDb((prev) => ({
-          ...prev,
-          plans: prev.plans.map((p) => (p.id === planId ? { ...p, ...patch } : p)),
-        }));
+     updatePlan(planId, patch) {
+        setPlans((prev) => prev.map((p) => (p.id === planId ? { ...p, ...patch } : p)));
+        fetch(`/api/plans/${planId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(patch),
+        }).catch(() => {});
       },
    
-      async addUser(tenantId, u: { name: string; username: string; password: string; role: UserRole; department: string }) {
+async addUser(tenantId, u: { name: string; username: string; password: string; role: UserRole; department: string }) {
   const passwordHash = bcrypt.hashSync(u.password, 10);
   const res = await fetch("/api/tenant-users", {
     method: "POST",
@@ -265,6 +286,12 @@ const value = useMemo<StoreValue>(() => {
       passwordHash, moduleOverrides: {},
     }),
   });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    return { ok: false as const, error: body.error ?? "Failed to add staff member." };
+  }
+
   const user: TenantUser = await res.json();
   setUsers((prev) => [...prev, { ...user, password: u.password }]);
 
@@ -275,6 +302,8 @@ const value = useMemo<StoreValue>(() => {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ seatsUsed: newSeats }),
   }).catch(() => {});
+
+  return { ok: true as const };
 },
 updateUserModules(userId, overrides) {
   setUsers((prev) => prev.map((u) => {
@@ -337,7 +366,7 @@ updateUserModules(userId, overrides) {
         setDb(fresh);
       },
     };
- }, [db, ready, tenants, users]);
+}, [db, ready, tenants, plans, activity]);
 
   return <StoreCtx.Provider value={value}>{children}</StoreCtx.Provider>;
 }

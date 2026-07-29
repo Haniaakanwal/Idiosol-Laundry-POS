@@ -85,8 +85,10 @@ model TenantUser {
   status          UserStatus
   lastActive      DateTime   @default(now())
   passwordHash    String
-  username        String     @unique
+  username        String
   moduleOverrides Json       @default("{}")
+
+  @@unique([tenantId, username])
 }
 
 enum OrderStatus {
@@ -224,4 +226,32 @@ model WhatsAppMessage {
   to         String
   sentAt     DateTime      @default(now())
   status     MessageStatus
+}
+
+enum ActivityKind {
+  signup
+  upgrade
+  downgrade
+  suspend
+  reactivate
+  invite
+  payment
+  login
+}
+
+model ActivityEvent {
+  id         String       @id @default(cuid())
+  tenantId   String
+  tenantName String
+  kind       ActivityKind
+  message    String
+  at         DateTime     @default(now())
+}
+
+model AdminAccount {
+  id           String  @id @default(cuid())
+  email        String  @unique
+  passwordHash String
+  name         String
+  mustReset    Boolean @default(false)
 }
