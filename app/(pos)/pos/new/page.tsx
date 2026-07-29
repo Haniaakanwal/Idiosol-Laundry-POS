@@ -88,14 +88,14 @@ const totals = useMemo(() => computeTotals(items, discount, payAmount,  taxRate)
   const custMatches = customers.filter((c) => !custQuery || c.fullName.toLowerCase().includes(custQuery.toLowerCase()) || c.phone.includes(custQuery)).slice(0, 6);
   const canNext = customer && items.length > 0;
 
-  function submit() {
+async function submit() {
     if (!customer || items.length === 0) return;
     const order = pos.createOrder({
       clientId: t.id, customerId: customer.id, customerName: customer.fullName, customerPhone: customer.phone,
       deliveryType, deliveryDate, pickupTime, placement, items, discount, salesman: "Admin", notes,
 payment: payAmount > 0 ? { type: payType, amount: payAmount } : undefined, taxRate,
     });
-    router.push(`/pos/orders/${order.id}`);
+   router.push(`/pos/orders/${(await order).id}`);
   }
 
   return (
