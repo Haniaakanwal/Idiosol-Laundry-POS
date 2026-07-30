@@ -1,7 +1,6 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { SEED_TENANTS } from "./mock-data";
 import {
   POSCustomer,
   POSService,
