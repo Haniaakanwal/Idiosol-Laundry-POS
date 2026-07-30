@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useStore } from "@/lib/store";
 import { usePos } from "@/lib/pos-store";
-import { PLAN_MAP, PLANS, FEATURES, isFeatureOn } from "@/lib/catalog";
+import { FEATURES, isFeatureOn, planById } from "@/lib/catalog";
 import { money, num, mb, dateLabel, daysUntil } from "@/lib/format";
 import { FeatureKey, UserRole } from "@/lib/types";
 import { PageHeader } from "@/components/PageHeader";
@@ -19,7 +19,7 @@ type Tab = (typeof TABS)[number];
 export default function ClientDetail() {
   const params = useParams();
   const id = params.id as string;
-  const store = useStore();
+const store = useStore();
   const pos = usePos();
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("Overview");
@@ -35,7 +35,7 @@ export default function ClientDetail() {
     </div>
   );
 
-  const plan = PLAN_MAP[t.plan];
+  const plan = planById(store.plans, t.plan);
 
   return (
     <>
@@ -89,7 +89,7 @@ export default function ClientDetail() {
 
 function OverviewTab({ t }: { t: any }) {
   const { plans } = useStore();
-  const plan = PLAN_MAP[t.plan];
+  const plan = planById(plans, t.plan);
   const onCount = FEATURES.filter((f) => isFeatureOn(plans, t.plan, t.featureOverrides, f.key)).length;
   const trialDays = daysUntil(t.trialEndsAt);
  
@@ -413,6 +413,7 @@ function removeHangFold(h: string) {
 
 // ---------------------------------------------------------------------------
 function AccessTab({ t }: { t: any }) {
+
   const { plans, toggleFeature, clearOverride, setPlan } = useStore();
   const cats = ["Core", "Finance", "Growth", "Platform"] as const;
 
@@ -423,8 +424,8 @@ function AccessTab({ t }: { t: any }) {
           <h3 className="text-sm font-semibold text-slate-900">Plan controls the baseline</h3>
           <p className="mt-1 text-sm text-slate-500">Switch plans to change defaults, or override individual modules below. Overrides win over the plan.</p>
         </div>
-        <div className="flex items-center gap-2">
-          {PLANS.map((p) => (
+      <div className="flex items-center gap-2">
+          {plans.map((p) => (
             <button key={p.id} onClick={() => setPlan(t.id, p.id)} className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition ${t.plan === p.id ? "border-brand-600 bg-brand-50 text-brand-700" : "border-slate-200 text-slate-600 hover:bg-slate-50"}`}>
               {p.name}
             </button>
@@ -439,7 +440,7 @@ function AccessTab({ t }: { t: any }) {
             <div className="border-b border-slate-100 bg-slate-50/60 px-5 py-2.5 text-xs font-semibold uppercase tracking-wide text-slate-500">{cat}</div>
             <ul className="divide-y divide-slate-100">
               {items.map((f) => {
-                const inPlan = (PLAN_MAP[t.plan].features as FeatureKey[]).includes(f.key);
+               const inPlan = (planById(plans, t.plan)?.features as FeatureKey[] ?? []).includes(f.key);
                 const override = t.featureOverrides[f.key];
                 const on = isFeatureOn(plans, t.plan, t.featureOverrides, f.key);
                 const overridden = override !== undefined;
@@ -477,11 +478,12 @@ function AccessTab({ t }: { t: any }) {
 const ROLES: UserRole[] = ["Owner", "Admin", "Manager", "Cashier", "Driver"];
 
 function UsersTab({ t }: { t: any }) {
+  const { plans } = useStore();
   const { usersFor, addUser, removeUser, updateUser } = useStore();
   const users = usersFor(t.id);
   const [open, setOpen] = useState(false);
 const [nu, setNu] = useState({ name: "", username: "", password: "", role: "Cashier" as UserRole, department: "Front Counter" });
-  const plan = PLAN_MAP[t.plan];
+const plan = planById(plans, t.plan);
   const atLimit = plan.seatLimit !== null && users.length >= plan.seatLimit;
 
   return (
@@ -549,15 +551,36 @@ const [nu, setNu] = useState({ name: "", username: "", password: "", role: "Cash
     </Card>
   );
 }
-
-// ---------------------------------------------------------------------------
 function BillingTab({ t }: { t: any }) {
-  const plan = PLAN_MAP[t.plan];
-  const invoices = [
-    { id: "INV-2041", date: "2026-07-01", amount: t.mrr, status: t.status === "suspended" ? "failed" : "paid" },
-    { id: "INV-1996", date: "2026-06-01", amount: plan.priceMonthly, status: "paid" },
-    { id: "INV-1951", date: "2026-05-01", amount: plan.priceMonthly, status: "paid" },
-  ];
+  const { plans } = useStore();
+  const plan = planById(plans, t.plan);
+
+
+  const invoices = useMemo(() => {
+    if (t.status === "trial" || !t.createdAt) return [];
+    const start = new Date(t.createdAt);
+    const now = new Date();
+    const rows: { id: string; date: string; amount: number; status: "paid" | "failed" }[] = [];
+    const cursor = new Date(start.getFullYear(), start.getMonth(), 1);
+    while (cursor <= now) {
+      const isLastPeriod = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1) > now;
+      rows.push({
+        id: `INV-${t.id.slice(-4).toUpperCase()}-${cursor.getFullYear()}${String(cursor.getMonth() + 1).padStart(2, "0")}`,
+        date: cursor.toISOString().slice(0, 10),
+        amount: plan.priceMonthly,
+        status: isLastPeriod && t.status === "suspended" ? "failed" : "paid",
+      });
+      cursor.setMonth(cursor.getMonth() + 1);
+    }
+    return rows.reverse(); // most recent first
+  }, [t.id, t.createdAt, t.status, plan.priceMonthly]);
+
+  const nextInvoiceDate = useMemo(() => {
+    if (t.status === "trial") return t.trialEndsAt ?? "—";
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString().slice(0, 10);
+  }, [t.status, t.trialEndsAt]);
+
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
       <Card className="p-5 lg:col-span-1">
@@ -566,12 +589,17 @@ function BillingTab({ t }: { t: any }) {
         <div className="mt-1 text-sm text-slate-500">{plan.name} · billed monthly</div>
         <div className="mt-4 space-y-2 text-sm">
           <Row label="Status" value={<StatusBadge status={t.status} />} />
-          <Row label="Next invoice" value="2026-08-01" />
+          <Row label="Next invoice" value={nextInvoiceDate} />
           <Row label="Method" value="Visa •••• 4242" />
         </div>
       </Card>
       <Card className="overflow-hidden lg:col-span-2">
         <div className="border-b border-slate-100 px-5 py-3.5"><h3 className="text-sm font-semibold text-slate-900">Invoices</h3></div>
+        {invoices.length === 0 ? (
+          <p className="px-5 py-8 text-center text-sm text-slate-400">
+            {t.status === "trial" ? "No invoices yet — still in trial period." : "No invoices yet."}
+          </p>
+        ) : (
         <table className="w-full text-sm">
           <thead><tr className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500"><th className="px-5 py-2.5">Invoice</th><th className="px-4 py-2.5">Date</th><th className="px-4 py-2.5">Amount</th><th className="px-4 py-2.5">Status</th></tr></thead>
           <tbody className="divide-y divide-slate-100">
@@ -585,6 +613,7 @@ function BillingTab({ t }: { t: any }) {
             ))}
           </tbody>
         </table>
+        )}
       </Card>
     </div>
   );

@@ -7,14 +7,10 @@ export default function ForgotAdminPassword() {
   const [email, setEmail] = useState("");
   const [msg, setMsg] = useState("");
 
-  async function submit() {
+async function submit() {
     const res = await resetAdminPassword(email);
     if (!res.ok) { setMsg(res.error); return; }
-    await fetch("/api/send-credentials", {
-      method: "POST",
-      body: JSON.stringify({ email, name: "Idiosol Admin", tempPassword: res.tempPassword, loginUrl: window.location.origin + "/admin-login" }),
-    });
-    setMsg("A new temporary password has been sent to your email.");
+    setMsg("If that email is registered, a new temporary password has been sent.");
   }
 
   return (

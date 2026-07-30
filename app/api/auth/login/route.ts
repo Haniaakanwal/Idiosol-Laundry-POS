@@ -17,8 +17,8 @@ export async function POST(req: Request) {
       session: { role: "admin", name: admin.name, email: admin.email, mustReset: admin.mustReset },
     });
     res.cookies.set("session", await signSession({ id: admin.id, role: "admin" }), {
-      httpOnly: true,
-      secure: true,
+  httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       path: "/",
       maxAge: 60 * 60 * 24 * 7, // 7 days
@@ -33,16 +33,19 @@ export async function POST(req: Request) {
   if (!bcrypt.compareSync(password, staff.passwordHash)) {
     return NextResponse.json({ ok: false, error: "Incorrect password." }, { status: 401 });
   }
+  // ...
   const res = NextResponse.json({
     ok: true,
     session: { role: "staff", tenantId: staff.tenantId, name: staff.name, email: staff.email, userRole: staff.role },
   });
+  
   res.cookies.set("session", await signSession({ id: staff.id, role: "staff" }), {
     httpOnly: true,
-    secure: true,
+    secure: process.env.NODE_ENV === "production", // <-- FIX HERE: changed hardcoded true to dynamic env check
     sameSite: "lax",
     path: "/",
     maxAge: 60 * 60 * 24 * 7,
   });
+  
   return res;
 }

@@ -13,7 +13,7 @@ interface AuthValue {
   ready: boolean;
   login: (email: string, password: string) => Promise<{ ok: true; session: Session } | { ok: false; error: string }>;
   logout: () => void;
-  resetAdminPassword: (email: string) => Promise<{ ok: true; tempPassword: string } | { ok: false; error: string }>;
+resetAdminPassword: (email: string) => Promise<{ ok: true } | { ok: false; error: string }>;
   setNewAdminPassword: (newPassword: string) => Promise<void>;
 }
 
@@ -60,17 +60,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { ok: true, session: body.session };
       },
 
-      async setNewAdminPassword(newPassword) {
+ async setNewAdminPassword(newPassword) {
         if (session?.role !== "admin") return;
         await fetch("/api/auth/admin-set-password", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: session.email, newPassword }),
+          body: JSON.stringify({ newPassword }),
         });
         setSession({ ...session, mustReset: false });
       },
-
-      async resetAdminPassword(email) {
+async resetAdminPassword(email) {
         const res = await fetch("/api/auth/admin-reset", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -78,9 +77,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         });
         const body = await res.json();
         if (!body.ok) return { ok: false, error: body.error ?? "Reset failed." };
-        return { ok: true, tempPassword: body.tempPassword };
+        return { ok: true };
       },
-
      logout() {
         setSession(null);
         fetch("/api/auth/logout", { method: "POST" }).catch(() => {});

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useStore } from "@/lib/store";
-import { FEATURES, PLAN_MAP, isFeatureOn } from "@/lib/catalog";
+import { FEATURES, isFeatureOn, planById } from "@/lib/catalog";
 import { FeatureKey } from "@/lib/types";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, Toggle, StatusBadge } from "@/components/ui";
@@ -39,7 +39,7 @@ export default function AccessPage() {
                     <div className="flex h-7 w-7 items-center justify-center rounded-md bg-brand-50 text-[10px] font-semibold text-brand-700">{t.name.slice(0, 2).toUpperCase()}</div>
                     <div className="min-w-0">
                       <div className="truncate text-sm font-medium text-slate-900">{t.name}</div>
-                      <div className="text-[11px] text-slate-400">{PLAN_MAP[t.plan].name}</div>
+                     <div className="text-[11px] text-slate-400">{planById(plans, t.plan)?.name}</div>
                     </div>
                   </Link>
                 </td>

@@ -28,7 +28,7 @@ const custFilter = searchParams.get("customerId");
   const [delivery, setDelivery] = useState<"All" | (typeof DELIVERY_TYPES)[number]>("All");
   const [useDates, setUseDates] = useState(false);
   const [from, setFrom] = useState("2026-06-01");
-  const [to, setTo] = useState("todayStr()");
+const [to, setTo] = useState(new Date().toISOString().slice(0, 10));
   const [sel, setSel] = useState<Set<string>>(new Set());
   const [toast, setToast] = useState("");
 

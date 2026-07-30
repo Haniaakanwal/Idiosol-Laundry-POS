@@ -10,12 +10,23 @@ import { OrderStatusBadge } from "@/components/pos/bits";
 import { PlusCircle, ClipboardList, Wallet, PackageCheck, Clock } from "lucide-react";
 
 export default function PosDashboard() {
-  const { tenants, plans } = useStore();
+  const { tenants, plans, loading } = useStore(); // Add loading state if available
   const pos = usePos();
-  const t = tenants.find((x) => x.id === pos.activeClientId)!;
+  
+  const t = tenants.find((x) => x.id === pos.activeClientId);
+
+  // 1. Guard against empty or loading tenant state
+  if (!t) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <p className="text-sm text-slate-500">Loading tenant session...</p>
+      </div>
+    );
+  }
+
+  // 2. Safe to access 't' properties once confirmed defined
   const orders = pos.ordersFor(t.id);
   const cur = t.currency;
-
   const collected = orders.reduce((s, o) => s + o.paid, 0);
   const outstanding = orders.reduce((s, o) => s + o.balance, 0);
   const ready = orders.filter((o) => o.status === "Ready");

@@ -149,7 +149,7 @@ payment: payAmount > 0 ? { type: payType, amount: payAmount } : undefined, taxRa
             {/* order header */}
             <div className="border-b border-slate-100 px-4 py-3">
               <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
-                <Meta label="Order date" value="todayStr()" />
+               <Meta label="Order date" value={new Date().toISOString().slice(0, 10)} />
                 <div>
                   <div className="mb-0.5 text-slate-400">Delivery</div>
                   <input type="date" value={deliveryDate} onChange={(e) => setDeliveryDate(e.target.value)} className="w-full rounded border border-slate-200 px-1.5 py-1 text-xs" />

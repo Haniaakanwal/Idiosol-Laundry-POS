@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useStore, NewTenantInput } from "@/lib/store";
 import { COUNTRY_INFO } from "@/lib/country-data";
-import { PLAN_MAP, PLANS } from "@/lib/catalog";
+import { planById } from "@/lib/catalog";
 import { money, num, mb, dateLabel } from "@/lib/format";
 import { TenantStatus, PlanId } from "@/lib/types";
 import { PageHeader } from "@/components/PageHeader";
@@ -14,7 +14,7 @@ import { Plus, Search } from "lucide-react";
 const STATUS_FILTERS: (TenantStatus | "all")[] = ["all", "active", "trial", "suspended", "churned"];
 
 export default function ClientsPage() {
-  const { tenants, ready } = useStore();
+  const { tenants, ready, plans } = useStore();
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<TenantStatus | "all">("all");
   const [plan, setPlan] = useState<PlanId | "all">("all");
@@ -56,9 +56,9 @@ export default function ClientsPage() {
             </button>
           ))}
         </div>
-        <select value={plan} onChange={(e) => setPlan(e.target.value as any)} className={`${inputCls} w-auto`}>
+       <select value={plan} onChange={(e) => setPlan(e.target.value as any)} className={`${inputCls} w-auto`}>
           <option value="all">All plans</option>
-          {PLANS.map((p) => (
+          {plans.map((p) => (
             <option key={p.id} value={p.id}>{p.name}</option>
           ))}
         </select>
@@ -79,8 +79,8 @@ export default function ClientsPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {rows.map((t) => {
-              const p = PLAN_MAP[t.plan];
+           {rows.map((t) => {
+              const p = planById(plans, t.plan);
               const seatMax = p.seatLimit ?? t.seatsUsed + 5;
               return (
                 <tr key={t.id} className="group hover:bg-slate-50/60">
@@ -128,7 +128,7 @@ export default function ClientsPage() {
 }
 
 function ProvisionModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { addTenant } = useStore();
+  const { addTenant, plans } = useStore();
   const [f, setF] = useState<NewTenantInput>({
     name: "",
     slug: "",
@@ -227,9 +227,9 @@ function ProvisionModal({ open, onClose }: { open: boolean; onClose: () => void 
             <option value="ar">Arabic (RTL)</option>
           </select>
         </Field>
-        <Field label="Plan">
+    <Field label="Plan">
           <select className={inputCls} value={f.plan} onChange={(e) => set("plan", e.target.value)}>
-            {PLANS.map((p) => <option key={p.id} value={p.id}>{p.name} — {money(p.priceMonthly)}/mo</option>)}
+            {plans.map((p) => <option key={p.id} value={p.id}>{p.name} — {money(p.priceMonthly)}/mo</option>)}
           </select>
         </Field>
         <Field label="Billing">

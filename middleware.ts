@@ -2,13 +2,10 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { verifySession } from "@/lib/session";
 
-// Ye routes bina login ke bhi chalne chahiye (login/reset flows khud)
 const PUBLIC_API_PATHS = [
   "/api/auth/login",
   "/api/auth/logout",
   "/api/auth/admin-reset",
-  "/api/auth/admin-set-password",
-  "/api/send-credentials",
 ];
 
 export async function middleware(req: NextRequest) {

@@ -17,8 +17,8 @@ export default function CounterReportPage() {
   const orders = pos.ordersFor(t.id);
 
   const [from, setFrom] = useState("2026-06-01");
-  const [to, setTo] = useState("todayStr()");
-  const [range, setRange] = useState<{ from: string; to: string }>({ from: "2026-06-01", to: "todayStr()" });
+const [to, setTo] = useState(new Date().toISOString().slice(0, 10));
+  const [range, setRange] = useState<{ from: string; to: string }>({ from: "2026-06-01", to: new Date().toISOString().slice(0, 10) });
 
   const r = useMemo(() => {
     const inRange = orders.filter((o) => o.date >= range.from && o.date <= range.to && o.status !== "Cancelled");

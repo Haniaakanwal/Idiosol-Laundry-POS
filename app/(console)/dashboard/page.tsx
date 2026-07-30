@@ -2,14 +2,13 @@
 
 import Link from "next/link";
 import { useStore } from "@/lib/store";
-import { PLANS } from "@/lib/catalog";
 import { money, num, dateLabel } from "@/lib/format";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, StatusBadge, Progress } from "@/components/ui";
 import { TrendingUp, Building2, Users, ShoppingCart, AlertTriangle, ArrowRight } from "lucide-react";
 
 export default function DashboardPage() {
-  const { tenants, users, activity, ready } = useStore();
+  const { tenants, users, activity, plans, ready } = useStore();
   if (!ready) return <Skeleton />;
 
   const active = tenants.filter((t) => t.status === "active");
@@ -18,13 +17,14 @@ export default function DashboardPage() {
   const mrr = tenants.reduce((s, t) => s + t.mrr, 0);
   const orders = tenants.reduce((s, t) => s + t.monthlyOrders, 0);
 
-  const byPlan = PLANS.map((p) => ({
+ const byPlan = plans.map((p) => ({
     plan: p,
     count: tenants.filter((t) => t.plan === p.id && t.status !== "churned").length,
   }));
   const maxPlan = Math.max(1, ...byPlan.map((b) => b.count));
-
-  const attention = tenants.filter((t) => t.status === "suspended" || (t.status === "trial" && (t.trialEndsAt ?? "") <= "2026-07-12"));
+const soon = new Date();
+  soon.setDate(soon.getDate() + 3);
+  const attention = tenants.filter((t) => t.status === "suspended" || (t.status === "trial" && t.trialEndsAt && new Date(t.trialEndsAt) <= soon));
 
   return (
     <>

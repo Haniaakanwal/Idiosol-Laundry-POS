@@ -2,22 +2,15 @@
 import bcrypt from "bcryptjs"
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { Tenant, TenantUser, ActivityEvent, FeatureKey, PlanId, TenantStatus, UserRole } from "./types";
-import { SEED_TENANTS, seedUsersFor, SEED_ACTIVITY } from "./mock-data";
 import { generateTempPassword } from "./password";
-import { PLANS } from "./catalog";
 import { Plan } from "./types";
 
 
 const LS_KEY = "laundry-saas-admin:v1";
 interface DB {
-  users: TenantUser[];
 }
 function seed(): DB {
-  const users = SEED_TENANTS.flatMap((t) => seedUsersFor(t));
-  
-  return { 
-    users, 
-  };
+  return {};
 }
 interface StoreValue extends DB {
   ready: boolean;
@@ -134,12 +127,14 @@ useEffect(() => {
   }, [db, ready]);
 
 const value = useMemo<StoreValue>(() => {
- return {
+  const priceFor = (planId: PlanId) => plans.find((p) => p.id === planId)?.priceMonthly ?? 0;
+return {
       ...db,
       ready,
       tenants,
       plans,
       activity,
+      users,
 
       async addTenant(input) {
         const tempPassword = generateTempPassword();
@@ -165,7 +160,7 @@ const value = useMemo<StoreValue>(() => {
             plan: input.plan,
             status: input.trial ? "trial" : "active",
      trialEndsAt: input.trial ? new Date(Date.now() + 21 * 24 * 60 * 60 * 1000).toISOString() : undefined,
-            mrr: input.trial ? 0 : planPrice(input.plan),
+            mrr: input.trial ? 0 : priceFor(input.plan),
           }),
         });
         const tenant: Tenant = await res.json();
@@ -186,11 +181,10 @@ const value = useMemo<StoreValue>(() => {
           }),
         });
         const owner: TenantUser = await userRes.json();
- setUsers((prev) => [{ ...owner, password: tempPassword }, ...prev]);
+setUsers((prev) => [{ ...owner, password: tempPassword }, ...prev]);
         setTenants((prev) => [tenant, ...prev]);
         const ev = logEvent({ tenantId: tenant.id, tenantName: input.name, kind: "signup", message: input.trial ? "Provisioned (trial)" : "Provisioned" });
         setActivity((prev) => [ev, ...prev]);
-        setDb((prev) => ({ ...prev, users: [owner, ...prev.users] }));
         return tenant;
       },
     updateTenant(id, patch) {
@@ -217,11 +211,10 @@ const value = useMemo<StoreValue>(() => {
           body: JSON.stringify({ status, mrr: newMrr }),
         }).catch(() => {});
       },
-
-    setPlan(id, plan) {
+setPlan(id, plan) {
         const t = tenants.find((x) => x.id === id);
-        const kind = t && planPrice(plan) > planPrice(t.plan) ? "upgrade" : "downgrade";
-        const newMrr = t ? (t.status === "trial" ? 0 : planPrice(plan)) : 0;
+        const kind = t && priceFor(plan) > priceFor(t.plan) ? "upgrade" : "downgrade";
+        const newMrr = t ? (t.status === "trial" ? 0 : priceFor(plan)) : 0;
       setTenants((prev) => prev.map((x) => (x.id === id ? { ...x, plan, mrr: newMrr } : x)));
         if (t) {
           const ev = logEvent({ tenantId: id, tenantName: t.name, kind, message: `Plan changed to ${plan}` });
@@ -363,13 +356,9 @@ updateUserModules(userId, overrides) {
         setDb(fresh);
       },
     };
-}, [db, ready, tenants, plans, activity]);
+}, [db, ready, tenants, plans, activity, users]);
 
   return <StoreCtx.Provider value={value}>{children}</StoreCtx.Provider>;
-}
-
-function planPrice(plan: PlanId): number {
-  return plan === "enterprise" ? 349 : plan === "professional" ? 129 : 49;
 }
 
 export function useStore() {
