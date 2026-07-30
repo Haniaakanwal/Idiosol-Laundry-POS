@@ -10,7 +10,7 @@ import { OrderStatusBadge } from "@/components/pos/bits";
 import { PlusCircle, ClipboardList, Wallet, PackageCheck, Clock } from "lucide-react";
 
 export default function PosDashboard() {
-  const { tenants, plans, loading } = useStore(); // Add loading state if available
+  const { tenants, plans} = useStore(); // Add loading state if available
   const pos = usePos();
   
   const t = tenants.find((x) => x.id === pos.activeClientId);
