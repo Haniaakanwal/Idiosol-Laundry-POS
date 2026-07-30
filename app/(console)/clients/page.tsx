@@ -79,9 +79,9 @@ export default function ClientsPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-           {rows.map((t) => {
-              const p = planById(plans, t.plan);
-              const seatMax = p.seatLimit ?? t.seatsUsed + 5;
+       {rows.map((t) => {
+  const p = planById(plans, t.plan);
+  const seatMax = p?.seatLimit ?? t.seatsUsed + 5;
               return (
                 <tr key={t.id} className="group hover:bg-slate-50/60">
                   <td className="px-5 py-3">
@@ -95,17 +95,17 @@ export default function ClientsPage() {
                       </div>
                     </Link>
                   </td>
-                  <td className="px-4 py-3">
-                    <Badge tone={t.plan === "enterprise" ? "violet" : t.plan === "professional" ? "brand" : "slate"}>{p.name}</Badge>
-                    {t.locale === "ar" && <span className="ml-1 text-xs text-slate-400">AR</span>}
-                  </td>
-                  <td className="px-4 py-3"><StatusBadge status={t.status} /></td>
-                  <td className="px-4 py-3">
-                    <div className="w-24">
-                      <div className="mb-1 text-xs text-slate-500">{t.seatsUsed}{p.seatLimit ? ` / ${p.seatLimit}` : ""}</div>
-                      <Progress value={t.seatsUsed} max={seatMax} />
-                    </div>
-                  </td>
+                 <td className="px-4 py-3">
+  <Badge tone={t.plan === "enterprise" ? "violet" : t.plan === "professional" ? "brand" : "slate"}>{p?.name ?? "—"}</Badge>
+  {t.locale === "ar" && <span className="ml-1 text-xs text-slate-400">AR</span>}
+</td>
+<td className="px-4 py-3"><StatusBadge status={t.status} /></td>
+<td className="px-4 py-3">
+  <div className="w-24">
+    <div className="mb-1 text-xs text-slate-500">{t.seatsUsed}{p?.seatLimit ? ` / ${p.seatLimit}` : ""}</div>
+    <Progress value={t.seatsUsed} max={seatMax} />
+  </div>
+</td>
                   <td className="px-4 py-3 text-slate-600">{num(t.monthlyOrders)}</td>
                   <td className="px-4 py-3 text-slate-600">{mb(t.storageUsedMB)}</td>
                   <td className="px-4 py-3 font-medium text-slate-900">{money(t.mrr, t.currency)}</td>
