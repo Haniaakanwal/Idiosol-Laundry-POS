@@ -16,6 +16,7 @@ interface StoreValue extends DB {
   ready: boolean;
   tenants: Tenant[];
   plans: Plan[];
+  users: TenantUser[];
   activity: ActivityEvent[];
   addTenant: (t: NewTenantInput) => Promise<Tenant>;
   updateTenant: (id: string, patch: Partial<Tenant>) => void;
