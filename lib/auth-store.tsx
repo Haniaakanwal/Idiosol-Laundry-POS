@@ -46,21 +46,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo<AuthValue>(
     () => ({
       session,
-      ready,
+ready,
 
-      async login(email, password) {
-        const res = await fetch("/api/auth/login", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password }),
-        });
-        const body = await res.json();
-        if (!body.ok) return { ok: false, error: body.error ?? "Login failed." };
-        setSession(body.session);
-        return { ok: true, session: body.session };
-      },
+async login(email, password) {
+  const res = await fetch("/api/auth/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+  const body = await res.json();
+  
+  if (!body.ok) {
+    return { ok: false, error: body.error ?? "Login failed." };
+  }
 
- async setNewAdminPassword(newPassword) {
+  setSession(body.session);
+
+  // Force a full page reload to destination instead of client-side routing.
+  // This ensures the browser commits the HTTP Set-Cookie header before parallel API fetches execute.
+  const targetPath = body.session?.user?.role === "admin" ? "/dashboard" : "/pos";
+  window.location.href = targetPath;
+
+  return { ok: true, session: body.session };
+},
+
+async setNewAdminPassword(newPassword) {
         if (session?.role !== "admin") return;
         await fetch("/api/auth/admin-set-password", {
           method: "POST",
