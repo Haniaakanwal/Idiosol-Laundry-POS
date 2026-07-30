@@ -80,6 +80,7 @@ useEffect(() => {
 const [plans, setPlans] = useState<Plan[]>([]);
   useEffect(() => {
     fetch("/api/plans")
+    .then((r) => (r.ok ? r.json() : []))
       .then((r) => r.json())
       .then((data) => setPlans(data))
       .catch(() => {
@@ -90,6 +91,7 @@ const [plans, setPlans] = useState<Plan[]>([]);
   const [activity, setActivity] = useState<ActivityEvent[]>([]);
   useEffect(() => {
     fetch("/api/activity")
+    .then((r) => (r.ok ? r.json() : []))
       .then((r) => r.json())
       .then((data) => setActivity(data))
       .catch(() => {
