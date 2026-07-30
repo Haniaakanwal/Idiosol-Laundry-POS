@@ -66,7 +66,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [db, setDb] = useState<DB>(() => seed());
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [users, setUsers] = useState<TenantUser[]>([]);
-  const [ready, setReady] = useState(false);
+  const [dbReady, setDbReady] = useState(false);
+  const [tenantsReady, setTenantsReady] = useState(false);
+  const ready = dbReady && tenantsReady;
 
 useEffect(() => {
     fetch("/api/tenants")
@@ -74,15 +76,15 @@ useEffect(() => {
       .then((data) => setTenants(Array.isArray(data) ? data : []))
       .catch(() => {
         /* leave tenants empty on failure */
-      });
+      })
+      .finally(() => setTenantsReady(true));
   }, []);
 
 const [plans, setPlans] = useState<Plan[]>([]);
   useEffect(() => {
     fetch("/api/plans")
-    .then((r) => (r.ok ? r.json() : []))
-      .then((r) => r.json())
-      .then((data) => setPlans(data))
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data) => setPlans(Array.isArray(data) ? data : []))
       .catch(() => {
         /* leave plans empty on failure */
       });
@@ -91,9 +93,8 @@ const [plans, setPlans] = useState<Plan[]>([]);
   const [activity, setActivity] = useState<ActivityEvent[]>([]);
   useEffect(() => {
     fetch("/api/activity")
-    .then((r) => (r.ok ? r.json() : []))
-      .then((r) => r.json())
-      .then((data) => setActivity(data))
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data) => setActivity(Array.isArray(data) ? data : []))
       .catch(() => {
         /* leave activity empty on failure */
       });
@@ -107,8 +108,6 @@ useEffect(() => {
       });
   }, []);
   // Hydrate from localStorage on mount (client only).
-
-  // Hydrate from localStorage on mount (client only).
   useEffect(() => {
     try {
       const raw = typeof window !== "undefined" ? window.localStorage.getItem(LS_KEY) : null;
@@ -116,7 +115,7 @@ useEffect(() => {
     } catch {
       /* ignore corrupt cache */
     }
-    setReady(true);
+    setDbReady(true);
   }, []);
 
   // Persist on change.
