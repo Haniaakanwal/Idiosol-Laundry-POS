@@ -184,15 +184,15 @@ function removeHangFold(h: string) {
       <div className="space-y-6 lg:col-span-2">
         <Card className="p-5">
           <h3 className="mb-4 text-sm font-semibold text-slate-900">Usage</h3>
-          <div className="grid grid-cols-2 gap-5 sm:grid-cols-4">
-            <Metric label="Orders / 30d" value={num(t.monthlyOrders)} />
-            <Metric label="Branches" value={`${t.branches}${plan.branchLimit ? ` / ${plan.branchLimit}` : ""}`} />
-            <Metric label="Seats" value={`${t.seatsUsed}${plan.seatLimit ? ` / ${plan.seatLimit}` : ""}`} />
-            <Metric label="Modules on" value={`${onCount} / ${FEATURES.length}`} />
-          </div>
+       <div className="grid grid-cols-2 gap-5 sm:grid-cols-4">
+  <Metric label="Orders / 30d" value={num(t.monthlyOrders)} />
+  <Metric label="Branches" value={`${t.branches}${plan?.branchLimit ? ` / ${plan.branchLimit}` : ""}`} />
+  <Metric label="Seats" value={`${t.seatsUsed}${plan?.seatLimit ? ` / ${plan.seatLimit}` : ""}`} />
+  <Metric label="Modules on" value={`${onCount} / ${FEATURES.length}`} />
+</div>
           <div className="mt-5">
-            <div className="mb-1 flex justify-between text-xs text-slate-500"><span>Storage</span><span>{mb(t.storageUsedMB)} / {mb(plan.storageLimitMB)}</span></div>
-            <Progress value={t.storageUsedMB} max={plan.storageLimitMB} />
+            <div className="mb-1 flex justify-between text-xs text-slate-500"><span>{mb(t.storageUsedMB)} / {mb(plan?.storageLimitMB ?? 0)}</span></div>
+          <Progress value={t.storageUsedMB} max={plan!.storageLimitMB} />
           </div>
         </Card>
 <Card className="p-5">
@@ -389,8 +389,8 @@ function removeHangFold(h: string) {
   </div>
 </Card>
           <div className="rounded-lg bg-slate-50 p-4">
-            <div className="text-lg font-semibold text-slate-900">{plan.name}</div>
-            <div className="text-sm text-slate-500">{money(plan.priceMonthly, t.currency)}/mo · {plan.blurb}</div>
+<div className="font-semibold text-slate-900">{plan?.name ?? "No Plan"}</div>
+<div className="text-slate-500">{money(plan?.priceMonthly ?? 0, t.currency)}/mo · {plan?.blurb ?? ""}</div>
           </div>
           {t.status === "trial" && (
   <button onClick={() => setStatus(t.id, "active")} className="mt-2 w-full rounded-lg bg-brand-600 py-2 text-sm font-medium text-white">
@@ -484,15 +484,16 @@ function UsersTab({ t }: { t: any }) {
   const [open, setOpen] = useState(false);
 const [nu, setNu] = useState({ name: "", username: "", password: "", role: "Cashier" as UserRole, department: "Front Counter" });
 const plan = planById(plans, t.plan);
-  const atLimit = plan.seatLimit !== null && users.length >= plan.seatLimit;
+const seatLimit = plan?.seatLimit ?? null;
+const atLimit = seatLimit !== null && users.length >= seatLimit;
 
-  return (
-    <Card className="overflow-hidden">
-      <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5">
-        <div>
-          <h3 className="text-sm font-semibold text-slate-900">Staff accounts</h3>
-          <p className="text-xs text-slate-400">{users.length}{plan.seatLimit ? ` of ${plan.seatLimit}` : ""} seats used{atLimit ? " · seat limit reached" : ""}</p>
-        </div>
+return (
+  <Card className="overflow-hidden">
+    <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5">
+      <div>
+        <h3 className="text-sm font-semibold text-slate-900">Staff accounts</h3>
+        <p className="text-xs text-slate-400">{users.length}{seatLimit ? ` of ${seatLimit}` : ""} seats used{atLimit ? " · seat limit reached" : ""}</p>
+      </div>
         <Button size="sm" onClick={() => setOpen(true)} disabled={atLimit}><Plus className="h-4 w-4" /> Invite user</Button>
       </div>
       <table className="w-full text-sm">
@@ -564,16 +565,16 @@ function BillingTab({ t }: { t: any }) {
     const cursor = new Date(start.getFullYear(), start.getMonth(), 1);
     while (cursor <= now) {
       const isLastPeriod = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1) > now;
-      rows.push({
+ rows.push({
         id: `INV-${t.id.slice(-4).toUpperCase()}-${cursor.getFullYear()}${String(cursor.getMonth() + 1).padStart(2, "0")}`,
         date: cursor.toISOString().slice(0, 10),
-        amount: plan.priceMonthly,
+        amount: plan?.priceMonthly ?? 0,
         status: isLastPeriod && t.status === "suspended" ? "failed" : "paid",
       });
       cursor.setMonth(cursor.getMonth() + 1);
     }
     return rows.reverse(); // most recent first
-  }, [t.id, t.createdAt, t.status, plan.priceMonthly]);
+  }, [t.id, t.createdAt, t.status, plan?.priceMonthly]);
 
   const nextInvoiceDate = useMemo(() => {
     if (t.status === "trial") return t.trialEndsAt ?? "—";
@@ -585,8 +586,8 @@ function BillingTab({ t }: { t: any }) {
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
       <Card className="p-5 lg:col-span-1">
         <h3 className="mb-3 text-sm font-semibold text-slate-900">Current plan</h3>
-        <div className="text-2xl font-semibold text-slate-900">{money(plan.priceMonthly, t.currency)}<span className="text-sm font-normal text-slate-400">/mo</span></div>
-        <div className="mt-1 text-sm text-slate-500">{plan.name} · billed monthly</div>
+        <div className="text-2xl font-semibold text-slate-900">{money(plan?.priceMonthly ?? 0, t.currency)}<span className="text-sm font-normal text-slate-400">/mo</span></div>
+        <div className="mt-1 text-sm text-slate-500">{plan?.name ?? "No Plan"} · billed monthly</div>
         <div className="mt-4 space-y-2 text-sm">
           <Row label="Status" value={<StatusBadge status={t.status} />} />
           <Row label="Next invoice" value={nextInvoiceDate} />
