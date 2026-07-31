@@ -1,106 +1,87 @@
-# LaundryPOS — SaaS platform (admin control plane + tenant POS)
+# LaundryPOS — Multi-tenant Laundry POS SaaS
 
-Turns the FileMaker **LaundryPOS.fmp12** into a Vercel-hosted SaaS product. In FileMaker every
-client got their *own copy* of the file. Here, every client is a **tenant** in one shared database;
-every row is tagged with a `clientId`. Two apps ship in this repo:
+A SaaS platform for laundry businesses, built for Idiosol. Every client is a **tenant** in one
+shared Supabase (Postgres) database — every row is scoped by `tenantId`. Two apps ship in this repo:
 
-1. **Admin control plane** (`/dashboard`, `/clients`, …) — where **you** (Idiosol) provision clients
-   and control what each one can access.
-2. **Tenant POS** (`/pos`) — the app a laundry's staff actually use. It shows **only the modules you
-   enabled** for that client, closing the loop between the two apps.
+1. **Admin control plane** (`/dashboard`, `/clients`, …) — where Idiosol provisions clients and
+   controls what each one can access.
+2. **Tenant POS** (`/pos`) — the app a laundry's staff actually use day to day.
 
-Bridge them with **"Log in as client"** on any client page, or **"Open POS app"** in the admin sidebar.
-
-## Logins (demo credentials)
-
-The app opens on a **sign-in screen** with one-click demo accounts. Staff logins are locked to their
-own tenant; the platform admin can switch/impersonate any client.
-
-| Account | Email | Password |
-| --- | --- | --- |
-| **Platform Admin (Idiosol)** | `pa@healthandlife.com.au` | `idiosol123` |
-| Marina Dry Cleaners (Enterprise) | `ahmed@marinadc.ae` | `laundry123` |
-| Pressed & Fresh (Professional) | `sarah@pressedfresh.co.uk` | `laundry123` |
-| SoapBox Laundry (Professional) | `diego@soapbox.pt` | `laundry123` |
-| Limpio Express (Starter) | `valentina@limpio.mx` | `laundry123` |
-| Blue Wave Cleaners (Starter trial) | `kenji@bluewave.jp` | `laundry123` |
-| Crown Laundromat (Enterprise) | `olivia@crownlaundry.com` | `laundry123` |
-| Royal Press (Enterprise) | `m.rashid@royalpress.sa` | `laundry123` |
-
-Every client owner login uses password **`laundry123`**. A Starter client (Limpio) sees only 7
-modules; an Enterprise client (Marina) sees all 10 — proving the access control loop.
-
-## What it does
-
-| Screen | Purpose |
-| --- | --- |
-| **Overview** | Platform KPIs — active clients, MRR, orders, seats, activity feed, trials/suspensions needing attention |
-| **Clients** | Every tenant, searchable/filterable; **Provision client** wizard mints a new `clientId` + owner account |
-| **Client detail** | Per-tenant tabs: Overview · **Access** (toggle POS modules) · Users (seats/roles) · Billing · Danger (suspend/churn) |
-| **Access Control** | Bird's-eye matrix — all clients × all modules; grant/revoke any module with a click |
-| **Users** | Every staff account across all tenants, by role |
-| **Plans & Billing** | Starter / Professional / Enterprise and the module entitlements each unlocks |
-| **POS Modules** | The 14 functional modules, each mapped to its source FileMaker tables, with adoption counts |
-
-
-## Access model
-
-- **Plan** sets the baseline set of modules a client gets.
-- **Per-client overrides** win over the plan — grant an add-on (e.g. WhatsApp on a Professional plan)
-  or revoke a module. Overrides are flagged with an amber dot and can be reset to the plan default.
-- Modules were derived directly from the LaundryPOS DDR: POS/Transactions, Order Board, Customers,
-  Business accounts, Services & pricing, Inventory, Payments, , Reports, SMS, WhatsApp,
-  Promotions, Multi-branch, Arabic/RTL.
-
-## The tenant POS (`/pos`)
-
-The staff-facing app, scoped to one client at a time (switch with the header dropdown). Options come
-straight from the DDR value lists (Pickup/Home Delivery, Cash/Card/EFT, Nasha/starch levels,
-Dry Clean/Washing/Urgent, statuses Draft→Job Order→Ready→Delivered).
-
-| Module | What it does | Gated by feature |
-| --- | --- | --- |
-| **Dashboard** | Open/ready orders, collected vs outstanding, ready-for-pickup list | always |
-| **New Order** | Touch take-in counter: 6 service-type tabs + tappable garment grid → cart with qty steppers & hang/fold → pick/create customer → payment step (discount, VAT, method) | `pos` |
-| **Orders** | Job-order history: date-range + paid/delivery/status filters, **row selection**, and bulk actions (**Pay All · Mark Ready · Deliver All · Ready/Invoice SMS**); open one to advance status, cancel, print, take balance | `orders` |
-| **Customers** | Add/edit, phone/address, running balance, blacklist, order counts | `customers` |
-| **Business Accounts** | On-account customers with open balances and per-order statements | `business` |
-| **Services & Pricing** | Price matrix (garment × service type), inline-edit prices, Arabic names | `services` |
-| **Payments** | Every receipt across orders, filter by method | `payments` |
-| **Reports** | Revenue by day, collections by method, top garments, VAT collected | `reports` |
-| **Counter Cash Report** | Cash-received breakdown (Cash/Card/EFT/ACP) + order sales/discount/tax/grand-total + delivered items over a date range; Generate &amp; Preview / Print | `reports` |
-| **VAT Returns** | Output VAT grouped by tax period |  |
-| **Marketing** | SMS / WhatsApp / Promotions broadcasts to segments (ready orders, balances) | `sms`/`whatsapp`/`promotions` |
-
-**Quick-action menus** (⋯): the POS top bar has a menu (New Order · Order History · Counter Report);
-each order detail has a menu (Add payment · Deliver order · Print order · Custom SMS · Send order).
-Tickets, orders and the counter report print clean (the sidebar/top bar are `print:hidden`).
-
-Orders, customers and services live in `lib/pos-store.tsx` (separate `localStorage` key), seeded per
-tenant from `lib/pos.ts`. Same swap-to-Postgres seam as the admin store.
-
-## Run it
-
-```bash
-npm install
-npm run dev        # http://localhost:3000
-```
-
-Deploy to Vercel: push to a Git repo and import, or `vercel` from this folder. Zero config.
-
-## Prototype data
-
-State is seeded from `lib/mock-data.ts` and persisted to `localStorage` so your edits (new clients,
-access toggles, invites) survive refreshes. **Settings → Reset to seed** restores the originals.
-
-## Where the real backend plugs in
-
-`lib/store.tsx` (tenants/users/access) and `lib/pos-store.tsx` (customers/services/orders) are the two
-seams. They expose `addTenant`, `setPlan`, `toggleFeature`, `createOrder`, `addOrderPayment`, etc.
-against in-memory stores today. Swapping them for API routes backed by Postgres (Vercel Postgres /
-Neon) — with `clientId` on every table and Row-Level Security as sketched on the **Data Model** page —
-leaves every screen unchanged.
+Bridge them with **"Log in as client"** on any client detail page, or **"Open POS app"** in the
+admin sidebar.
 
 ## Stack
 
-Next.js 14 (App Router) · TypeScript · Tailwind CSS · lucide-react. No backend required to demo.
+- **Next.js 14** (App Router) + TypeScript + Tailwind CSS
+- **Supabase (Postgres)** — the real database
+- **Prisma** — ORM / data access layer, with driver adapters (`@prisma/adapter-pg`)
+- **bcryptjs** for password hashing + signed httpOnly session cookies (`lib/session.ts`,
+  `middleware.ts`) — all auth is verified server-side, nothing password-related touches the browser
+- **Resend** — transactional email (welcome emails, admin password resets)
+- **WasenderAPI** — WhatsApp messaging
+- Deployed on **Vercel**
+
+## Data model
+
+All app data lives in Supabase, accessed via Prisma from server-side API routes only — the browser
+never talks to the database directly. Row Level Security is enabled on every table.
+
+| Table | What it stores |
+| --- | --- |
+| `Tenant` | Client accounts, plan, status, tax settings, per-client customization lists |
+| `TenantUser` | Staff accounts, roles, per-user module overrides |
+| `POSCustomer` / `CreditLog` | Customers, balance, credit history |
+| `POSService` | Services & Pricing catalog |
+| `POSOrder` / `POSOrderItem` / `POSPayment` | Orders, line items, payments |
+| `WhatsAppMessage` | Message history per customer/order |
+| `Plan` | Starter / Professional / Enterprise definitions and feature entitlements |
+| `ActivityEvent` | Platform-wide recent activity feed |
+| `AdminAccount` | Platform admin logins |
+
+Only the current session token lives in the browser (localStorage) — everything else is server-side.
+
+## Admin console features
+
+- Client provisioning — sends a real welcome email with login credentials
+- **Plans & Billing** — price, seat/branch limits, and feature entitlements are all editable
+  directly in the UI, with changes reflected live everywhere they're used
+- **Access Control** — grid to toggle individual modules per client, overriding plan defaults
+- Client detail — Overview, Access, Users, Billing, Danger zone (suspend/reactivate/cancel)
+- **Settings** — add new platform admins (temp password generated + emailed automatically)
+- Dashboard — platform KPIs, recent activity feed, plan distribution, trials/suspensions needing
+  attention
+- **POS Modules** — a reference page mapping each module to its original FileMaker source tables,
+  with live per-client adoption counts (not a completeness checklist — shows how many active clients
+  currently have each module enabled)
+
+## Tenant POS features (`/pos`)
+
+| Module | What it does |
+| --- | --- |
+| **Dashboard** | Open/ready orders, collected vs outstanding, ready-for-pickup list |
+| **New Order** | Service/type picker, delivery type, hang/fold, urgent flag, discount, tax — all customizable per client |
+| **Orders** | Filterable, paginated job-order history; bulk actions; print 80mm thermal receipts |
+| **Customers** | Profile, balance, credit history, WhatsApp message history, blacklist |
+| **Services & Pricing** | Searchable price matrix, grouped by category |
+| **Payments** | Every receipt, filterable by method |
+| **Reports** | Daily Cash, Receiving, Job Order, Top Services, VAT Reports — each with its own date filters, totals, and print button |
+| **Marketing** | Template-based WhatsApp broadcasts to customer segments |
+| **Users** | Staff accounts, per-user module overrides, self-service password change |
+
+Order detail also has quick actions: take payment, deliver, print, and send WhatsApp (order status,
+order complete, balance reminder, or a custom message picked from a template).
+
+## Per-client customization
+
+Five value lists are fully customizable per client (Admin Console → client → Overview tab):
+Payment Methods, Delivery Types, Hang/Fold options, Service Categories, Placements. Each has a
+minimum-of-one-item safeguard. (Service Types and Starch Levels are intentionally out of scope for
+now — Service Types is tied into the pricing model and needs a larger change.)
+
+## Security
+
+- Row Level Security on every table
+- All authentication server-side — passwords are never compared in the browser
+- Signed httpOnly session cookies, validated by `middleware.ts` on every API route
+- Staff usernames are unique per client, not globally
+- Password hashes are never included in any API response
