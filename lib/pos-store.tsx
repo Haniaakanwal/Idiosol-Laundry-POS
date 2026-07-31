@@ -63,6 +63,8 @@ interface PosStoreValue extends PosDB {
   servicesFor: (clientId: string) => POSService[];
   ordersFor: (clientId: string) => POSOrder[];
   orderById: (id: string) => POSOrder | undefined;
+  fetchOrder: (id: string) => Promise<POSOrder | null>;
+  hydrateOrder: (order: POSOrder) => void;
 addCustomer: (c: Omit<POSCustomer, "id" | "balance" | "createdAt" | "creditBalance">) => Promise<POSCustomer>;
 sendWhatsApp: (clientId: string, customerId: string, to: string, text: string, orderId?: string) => Promise<boolean>;
 messagesFor: (customerId: string) => WhatsAppMessage[];
@@ -191,6 +193,20 @@ customersFor: (clientId) => customers.filter((c) => c.clientId === clientId),
       servicesFor: (clientId) => services.filter((s) => s.clientId === clientId),
   ordersFor: (clientId) => orders.filter((o) => o.clientId === clientId),
       orderById: (id) => orders.find((o) => o.id === id),
+      async fetchOrder(id) {
+        try {
+          const res = await fetch(`/api/orders/${id}`);
+          if (!res.ok) return null;
+          const order: POSOrder = await res.json();
+          setOrders((prev) => (prev.some((o) => o.id === order.id) ? prev.map((o) => (o.id === order.id ? order : o)) : [order, ...prev]));
+          return order;
+        } catch {
+          return null;
+        }
+      },
+      hydrateOrder(order) {
+        setOrders((prev) => (prev.some((o) => o.id === order.id) ? prev.map((o) => (o.id === order.id ? order : o)) : [order, ...prev]));
+      },
 
    async addCustomer(c) {
         const res = await fetch("/api/customers", {

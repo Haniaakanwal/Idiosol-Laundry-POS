@@ -1,29 +1,96 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useStore } from "@/lib/store";
 import { usePos } from "@/lib/pos-store";
 import { money, num } from "@/lib/format";
 import { PAYMENT_TYPES, SERVICE_TYPES } from "@/lib/pos";
 import { Card, inputCls } from "@/components/ui";
 import { ChevronRight, ChevronDown, Printer } from "lucide-react";
-import { useEffect } from "react";
 
+interface SummaryResp {
+  gross: number;
+  collected: number;
+  outstanding: number;
+}
+
+interface DailyCashRow {
+  id: string;
+  ref: string | null;
+  orderReference: string;
+  date: string;
+  customerName: string;
+  type: string;
+  amount: number;
+  vatShare: number;
+}
+interface DailyCashResp {
+  rows: DailyCashRow[];
+  totals: { amount: number; vat: number; total: number };
+}
+
+interface ReceivingGroup {
+  serviceType: string;
+  items: { serviceType: string; label: string; qty: number }[];
+}
+interface ReceivingResp {
+  groups: ReceivingGroup[];
+  total: number;
+}
+
+interface JobOrderRow {
+  id: string;
+  reference: string;
+  date: string;
+  customerName: string;
+  status: string;
+  itemsQty: number;
+  total: number;
+  paid: number;
+  balance: number;
+}
+
+interface VatRow {
+  id: string;
+  reference: string;
+  date: string;
+  customerName: string;
+  sub: number;
+  discount: number;
+  taxRate: number;
+  tax: number;
+  total: number;
+}
+interface VatResp {
+  rows: VatRow[];
+  totals: { taxable: number; vat: number; total: number };
+}
 
 export default function ReportsPage() {
   const { tenants } = useStore();
   const pos = usePos();
   const t = tenants.find((x) => x.id === pos.activeClientId)!;
   const cur = t.currency;
-  const orders = pos.ordersFor(t.id);
 
-  const gross = orders.reduce((s, o) => s + o.total, 0);
-  const collected = orders.reduce((s, o) => s + o.paid, 0);
-  const outstanding = orders.reduce((s, o) => s + o.balance, 0);
+  // --- Top-line stats (all-time Gross/Collected/Outstanding) ---
+  // Computed server-side via SQL SUM, not by downloading every order and
+  // reducing in the browser — stays fast regardless of order count.
+  const [summary, setSummary] = useState<SummaryResp | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/orders/summary?tenantId=${t.id}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => { if (!cancelled) setSummary(data); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [t.id]);
+  const gross = summary?.gross ?? 0;
+  const collected = summary?.collected ?? 0;
+  const outstanding = summary?.outstanding ?? 0;
 
   const todayIso = new Date().toISOString().slice(0, 10);
 
-const [open, setOpen] = useState<string | null>("dailyCash");
+  const [open, setOpen] = useState<string | null>("dailyCash");
   function toggle(key: string) {
     setOpen((prev) => (prev === key ? null : key));
   }
@@ -41,86 +108,99 @@ const [open, setOpen] = useState<string | null>("dailyCash");
     return () => { clearTimeout(timer); window.removeEventListener("afterprint", reset); };
   }, [printKey]);
 
+  function reportUrl(kind: string, params: Record<string, string>) {
+    const qs = new URLSearchParams({ tenantId: t.id, kind, ...params });
+    return `/api/orders/reports?${qs.toString()}`;
+  }
+
   // --- Daily Cash Report ---
   const [dcFrom, setDcFrom] = useState("2026-01-01");
   const [dcTo, setDcTo] = useState(todayIso);
   const [dcType, setDcType] = useState<"All" | (typeof PAYMENT_TYPES)[number]>("All");
   const [dcApplied, setDcApplied] = useState(false);
-
-  const dcRows = !dcApplied ? [] : orders
-    .flatMap((o) => o.payments.map((p) => ({ order: o, payment: p })))
-    .filter(({ payment }) => payment.date >= dcFrom && payment.date <= dcTo)
-    .filter(({ payment }) => dcType === "All" || payment.type === dcType)
-    .sort((a, b) => a.payment.date.localeCompare(b.payment.date));
-
-  const dcTotals = dcRows.reduce(
-    (s, { order, payment }) => {
-      const vatShare = order.total > 0 ? (order.tax ?? 0) * (payment.amount / order.total) : 0;
-      s.amount += payment.amount - vatShare;
-      s.vat += vatShare;
-      s.total += payment.amount;
-      return s;
-    },
-    { amount: 0, vat: 0, total: 0 }
-  );
+  const [dcLoading, setDcLoading] = useState(false);
+  const [dcData, setDcData] = useState<DailyCashResp | null>(null);
+  function applyDailyCash() {
+    setDcApplied(true);
+    setDcLoading(true);
+    fetch(reportUrl("dailyCash", { from: dcFrom, to: dcTo, type: dcType }))
+      .then((r) => (r.ok ? r.json() : null))
+      .then(setDcData)
+      .catch(() => setDcData(null))
+      .finally(() => setDcLoading(false));
+  }
+  const dcRows = dcData?.rows ?? [];
+  const dcTotals = dcData?.totals ?? { amount: 0, vat: 0, total: 0 };
 
   // --- Receiving Report ---
   const [rvFrom, setRvFrom] = useState("2026-01-01");
   const [rvTo, setRvTo] = useState(todayIso);
   const [rvService, setRvService] = useState<"All" | (typeof SERVICE_TYPES)[number]>("All");
   const [rvApplied, setRvApplied] = useState(false);
-
-  const rvItems = !rvApplied ? [] : orders
-    .filter((o) => o.date >= rvFrom && o.date <= rvTo)
-    .flatMap((o) => o.items)
-    .filter((it) => rvService === "All" || it.serviceType === rvService);
-
-  const rvGroups = new Map<string, Map<string, number>>();
-  for (const it of rvItems) {
-    if (!rvGroups.has(it.serviceType)) rvGroups.set(it.serviceType, new Map());
-    const g = rvGroups.get(it.serviceType)!;
-    const label = `${it.serviceName}-${it.serviceType}`;
-    g.set(label, (g.get(label) ?? 0) + it.qty);
+  const [rvLoading, setRvLoading] = useState(false);
+  const [rvData, setRvData] = useState<ReceivingResp | null>(null);
+  function applyReceiving() {
+    setRvApplied(true);
+    setRvLoading(true);
+    fetch(reportUrl("receiving", { from: rvFrom, to: rvTo, serviceType: rvService }))
+      .then((r) => (r.ok ? r.json() : null))
+      .then(setRvData)
+      .catch(() => setRvData(null))
+      .finally(() => setRvLoading(false));
   }
-  const rvTotal = rvItems.reduce((s, it) => s + it.qty, 0);
+  const rvGroups = rvData?.groups ?? [];
+  const rvTotal = rvData?.total ?? 0;
 
   // --- Job Order Report ---
   const [joFrom, setJoFrom] = useState("2026-01-01");
   const [joTo, setJoTo] = useState(todayIso);
   const [joApplied, setJoApplied] = useState(false);
-  const joRows = !joApplied ? [] : orders
-    .filter((o) => o.date >= joFrom && o.date <= joTo)
-    .sort((a, b) => a.date.localeCompare(b.date));
+  const [joLoading, setJoLoading] = useState(false);
+  const [joRows, setJoRows] = useState<JobOrderRow[]>([]);
+  function applyJobOrder() {
+    setJoApplied(true);
+    setJoLoading(true);
+    fetch(reportUrl("jobOrder", { from: joFrom, to: joTo }))
+      .then((r) => (r.ok ? r.json() : { rows: [] }))
+      .then((data) => setJoRows(data.rows ?? []))
+      .catch(() => setJoRows([]))
+      .finally(() => setJoLoading(false));
+  }
 
   // --- Top Services ---
   const [tsFrom, setTsFrom] = useState("2026-01-01");
   const [tsTo, setTsTo] = useState(todayIso);
   const [tsApplied, setTsApplied] = useState(false);
-  const svcMap = new Map<string, number>();
-  if (tsApplied) {
-    for (const o of orders.filter((o) => o.date >= tsFrom && o.date <= tsTo)) {
-      for (const it of o.items) svcMap.set(it.serviceName, (svcMap.get(it.serviceName) ?? 0) + it.qty);
-    }
+  const [tsLoading, setTsLoading] = useState(false);
+  const [topSvc, setTopSvc] = useState<[string, number][]>([]);
+  function applyTopServices() {
+    setTsApplied(true);
+    setTsLoading(true);
+    fetch(reportUrl("topServices", { from: tsFrom, to: tsTo }))
+      .then((r) => (r.ok ? r.json() : { items: [] }))
+      .then((data) => setTopSvc(data.items ?? []))
+      .catch(() => setTopSvc([]))
+      .finally(() => setTsLoading(false));
   }
- const topSvc = Array.from(svcMap.entries()).sort((a, b) => b[1] - a[1]);
   const maxSvc = Math.max(1, ...topSvc.map((s) => s[1]));
 
   // --- VAT Reports ---
   const [vatFrom, setVatFrom] = useState("2026-01-01");
   const [vatTo, setVatTo] = useState(todayIso);
   const [vatApplied, setVatApplied] = useState(false);
-  const vatRows = !vatApplied ? [] : orders
-    .filter((o) => o.date >= vatFrom && o.date <= vatTo && (o.tax ?? 0) > 0)
-    .sort((a, b) => a.date.localeCompare(b.date));
-  const vatTotals = vatRows.reduce(
-    (s, o) => {
-      s.taxable += o.sub - o.discount;
-      s.vat += o.tax ?? 0;
-      s.total += o.total;
-      return s;
-    },
-    { taxable: 0, vat: 0, total: 0 }
-  );
+  const [vatLoading, setVatLoading] = useState(false);
+  const [vatData, setVatData] = useState<VatResp | null>(null);
+  function applyVat() {
+    setVatApplied(true);
+    setVatLoading(true);
+    fetch(reportUrl("vat", { from: vatFrom, to: vatTo }))
+      .then((r) => (r.ok ? r.json() : null))
+      .then(setVatData)
+      .catch(() => setVatData(null))
+      .finally(() => setVatLoading(false));
+  }
+  const vatRows = vatData?.rows ?? [];
+  const vatTotals = vatData?.totals ?? { taxable: 0, vat: 0, total: 0 };
 
   return (
     <>
@@ -151,10 +231,12 @@ const [open, setOpen] = useState<string | null>("dailyCash");
                 {PAYMENT_TYPES.map((pt) => <option key={pt} value={pt}>{pt}</option>)}
               </select>
             </div>
-            <button onClick={() => setDcApplied(true)} className="rounded-lg bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-700">Apply</button>
+            <button onClick={applyDailyCash} className="rounded-lg bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-700">Apply</button>
           </div>
           {!dcApplied ? (
             <p className="py-6 text-center text-sm text-slate-400">Set your filters and click Apply to load this report.</p>
+          ) : dcLoading ? (
+            <p className="py-6 text-center text-sm text-slate-400">Loading…</p>
           ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -173,23 +255,20 @@ const [open, setOpen] = useState<string | null>("dailyCash");
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {dcRows.map(({ order, payment }, i) => {
-                  const vatShare = order.total > 0 ? (order.tax ?? 0) * (payment.amount / order.total) : 0;
-                  return (
-                    <tr key={payment.id}>
-                      <td className="py-2 pr-3 text-slate-500">{i + 1}</td>
-                      <td className="py-2 pr-3">{payment.ref ?? "—"}</td>
-                      <td className="py-2 pr-3">{order.reference}</td>
-                      <td className="py-2 pr-3">{payment.date}</td>
-                      <td className="py-2 pr-3">{order.customerName}</td>
-                      <td className="py-2 pr-3">{payment.type}</td>
-                      <td className="py-2 pr-3 text-right">{money(payment.amount - vatShare, cur)}</td>
-                      <td className="py-2 pr-3 text-right">{money(vatShare, cur)}</td>
-                      <td className="py-2 pr-3 text-right font-medium">{money(payment.amount, cur)}</td>
-                      <td className="py-2 text-right text-slate-400">—</td>
-                    </tr>
-                  );
-                })}
+                {dcRows.map((row, i) => (
+                  <tr key={row.id}>
+                    <td className="py-2 pr-3 text-slate-500">{i + 1}</td>
+                    <td className="py-2 pr-3">{row.ref ?? "—"}</td>
+                    <td className="py-2 pr-3">{row.orderReference}</td>
+                    <td className="py-2 pr-3">{row.date}</td>
+                    <td className="py-2 pr-3">{row.customerName}</td>
+                    <td className="py-2 pr-3">{row.type}</td>
+                    <td className="py-2 pr-3 text-right">{money(row.amount - row.vatShare, cur)}</td>
+                    <td className="py-2 pr-3 text-right">{money(row.vatShare, cur)}</td>
+                    <td className="py-2 pr-3 text-right font-medium">{money(row.amount, cur)}</td>
+                    <td className="py-2 text-right text-slate-400">—</td>
+                  </tr>
+                ))}
                 {dcRows.length === 0 && <tr><td colSpan={10} className="py-6 text-center text-slate-400">No transactions in this range.</td></tr>}
               </tbody>
               {dcRows.length > 0 && (
@@ -226,10 +305,12 @@ const [open, setOpen] = useState<string | null>("dailyCash");
                 {SERVICE_TYPES.map((s) => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
-            <button onClick={() => setRvApplied(true)} className="rounded-lg bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-700">Apply</button>
+            <button onClick={applyReceiving} className="rounded-lg bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-700">Apply</button>
           </div>
           {!rvApplied ? (
             <p className="py-6 text-center text-sm text-slate-400">Set your filters and click Apply to load this report.</p>
+          ) : rvLoading ? (
+            <p className="py-6 text-center text-sm text-slate-400">Loading…</p>
           ) : (
           <table className="w-full text-sm">
             <thead>
@@ -239,22 +320,22 @@ const [open, setOpen] = useState<string | null>("dailyCash");
               </tr>
             </thead>
             <tbody>
-              {Array.from(rvGroups.entries()).map(([type, items]) => (
+              {rvGroups.map((group) => (
                 <>
-                  <tr key={type} className="border-b border-slate-100 bg-slate-50/60">
-                    <td colSpan={2} className="py-1.5 px-1 text-xs font-semibold text-slate-700">{type}</td>
+                  <tr key={group.serviceType} className="border-b border-slate-100 bg-slate-50/60">
+                    <td colSpan={2} className="py-1.5 px-1 text-xs font-semibold text-slate-700">{group.serviceType}</td>
                   </tr>
-                  {Array.from(items.entries()).map(([label, qty]) => (
-                    <tr key={label} className="border-b border-slate-50">
-                      <td className="py-1.5 pl-3 text-slate-600">{label}</td>
-                      <td className="py-1.5 text-right text-slate-700">{qty}</td>
+                  {group.items.map((it) => (
+                    <tr key={it.label} className="border-b border-slate-50">
+                      <td className="py-1.5 pl-3 text-slate-600">{it.label}</td>
+                      <td className="py-1.5 text-right text-slate-700">{it.qty}</td>
                     </tr>
                   ))}
                 </>
               ))}
-              {rvGroups.size === 0 && <tr><td colSpan={2} className="py-6 text-center text-slate-400">No items in this range.</td></tr>}
+              {rvGroups.length === 0 && <tr><td colSpan={2} className="py-6 text-center text-slate-400">No items in this range.</td></tr>}
             </tbody>
-            {rvGroups.size > 0 && (
+            {rvGroups.length > 0 && (
               <tfoot>
                 <tr className="border-t border-slate-200 font-semibold text-slate-900">
                   <td className="py-2">Total</td>
@@ -277,10 +358,12 @@ const [open, setOpen] = useState<string | null>("dailyCash");
           <div className="mb-4 flex flex-wrap items-end gap-3">
             <div><div className="mb-1 text-xs text-slate-400">Date From</div><input type="date" value={joFrom} onChange={(e) => setJoFrom(e.target.value)} className={inputCls} /></div>
             <div><div className="mb-1 text-xs text-slate-400">Date To</div><input type="date" value={joTo} onChange={(e) => setJoTo(e.target.value)} className={inputCls} /></div>
-            <button onClick={() => setJoApplied(true)} className="rounded-lg bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-700">Apply</button>
+            <button onClick={applyJobOrder} className="rounded-lg bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-700">Apply</button>
           </div>
           {!joApplied ? (
             <p className="py-6 text-center text-sm text-slate-400">Set your filters and click Apply to load this report.</p>
+          ) : joLoading ? (
+            <p className="py-6 text-center text-sm text-slate-400">Loading…</p>
           ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -303,7 +386,7 @@ const [open, setOpen] = useState<string | null>("dailyCash");
                     <td className="py-2 pr-3">{o.date}</td>
                     <td className="py-2 pr-3">{o.customerName}</td>
                     <td className="py-2 pr-3">{o.status}</td>
-                    <td className="py-2 pr-3 text-right">{o.items.reduce((s, it) => s + it.qty, 0)}</td>
+                    <td className="py-2 pr-3 text-right">{o.itemsQty}</td>
                     <td className="py-2 pr-3 text-right">{money(o.total, cur)}</td>
                     <td className="py-2 pr-3 text-right">{money(o.paid, cur)}</td>
                     <td className="py-2 text-right">{money(o.balance, cur)}</td>
@@ -327,10 +410,12 @@ const [open, setOpen] = useState<string | null>("dailyCash");
           <div className="mb-4 flex flex-wrap items-end gap-3">
             <div><div className="mb-1 text-xs text-slate-400">Date From</div><input type="date" value={tsFrom} onChange={(e) => setTsFrom(e.target.value)} className={inputCls} /></div>
             <div><div className="mb-1 text-xs text-slate-400">Date To</div><input type="date" value={tsTo} onChange={(e) => setTsTo(e.target.value)} className={inputCls} /></div>
-            <button onClick={() => setTsApplied(true)} className="rounded-lg bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-700">Apply</button>
+            <button onClick={applyTopServices} className="rounded-lg bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-700">Apply</button>
           </div>
           {!tsApplied ? (
             <p className="py-6 text-center text-sm text-slate-400">Set your filters and click Apply to load this report.</p>
+          ) : tsLoading ? (
+            <p className="py-6 text-center text-sm text-slate-400">Loading…</p>
           ) : (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {topSvc.map(([name, q]) => (
@@ -357,10 +442,12 @@ const [open, setOpen] = useState<string | null>("dailyCash");
           <div className="mb-4 flex flex-wrap items-end gap-3">
             <div><div className="mb-1 text-xs text-slate-400">Date From</div><input type="date" value={vatFrom} onChange={(e) => setVatFrom(e.target.value)} className={inputCls} /></div>
             <div><div className="mb-1 text-xs text-slate-400">Date To</div><input type="date" value={vatTo} onChange={(e) => setVatTo(e.target.value)} className={inputCls} /></div>
-            <button onClick={() => setVatApplied(true)} className="rounded-lg bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-700">Apply</button>
+            <button onClick={applyVat} className="rounded-lg bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-700">Apply</button>
           </div>
           {!vatApplied ? (
             <p className="py-6 text-center text-sm text-slate-400">Set your filters and click Apply to load this report.</p>
+          ) : vatLoading ? (
+            <p className="py-6 text-center text-sm text-slate-400">Loading…</p>
           ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -382,8 +469,8 @@ const [open, setOpen] = useState<string | null>("dailyCash");
                     <td className="py-2 pr-3">{o.date}</td>
                     <td className="py-2 pr-3">{o.customerName}</td>
                     <td className="py-2 pr-3 text-right">{money(o.sub - o.discount, cur)}</td>
-                    <td className="py-2 pr-3 text-right">{(o as any).taxRate ?? 0}%</td>
-                    <td className="py-2 pr-3 text-right">{money(o.tax ?? 0, cur)}</td>
+                    <td className="py-2 pr-3 text-right">{o.taxRate}%</td>
+                    <td className="py-2 pr-3 text-right">{money(o.tax, cur)}</td>
                     <td className="py-2 text-right font-medium">{money(o.total, cur)}</td>
                   </tr>
                 ))}
@@ -439,7 +526,7 @@ function ReportSection({
       {open && <div className="border-t border-slate-100 p-5 print:border-t-0">{children}</div>}
     </Card>
   );
-} 
+}
 
 function Stat({ label, value, tone = "text-slate-900" }: { label: string; value: string; tone?: string }) {
   return <Card className="p-5"><div className="text-sm font-medium text-slate-500">{label}</div><div className={`mt-2 text-2xl font-semibold tracking-tight ${tone}`}>{value}</div></Card>;

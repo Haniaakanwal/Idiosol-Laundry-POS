@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { useStore } from "@/lib/store";
 import { usePos } from "@/lib/pos-store";
@@ -28,9 +28,30 @@ const [menu, setMenu] = useState(false);
   function flash(m: string) { setToast(m); setTimeout(() => setToast(""), 2600); }
 
   const o = pos.orderById(id);
+  const [lookupDone, setLookupDone] = useState(false);
+
+  // Don't wait on the full (potentially 10k-row) tenant order list just to open
+  // one order — fetch this one directly. If the bulk list finishes loading
+  // first (normal case, navigating from the Orders page) this is a no-op
+  // since `o` is already found above.
+  useEffect(() => {
+    if (o) { setLookupDone(true); return; }
+    let cancelled = false;
+    pos.fetchOrder(id).finally(() => { if (!cancelled) setLookupDone(true); });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, !!o]);
+
   const t = tenants.find((x) => x.id === o?.clientId);
   const customer = pos.customers.find((c) => c.id === o?.customerId);
-  if (!o || !t) return <div><Link href="/pos/orders" className="text-sm text-brand-600">← Orders</Link><p className="mt-4 text-sm text-slate-500">Order not found.</p></div>;
+
+  if (!o) {
+    if (!lookupDone) {
+      return <div className="animate-pulse text-sm text-slate-400">Loading order…</div>;
+    }
+    return <div><Link href="/pos/orders" className="text-sm text-brand-600">← Orders</Link><p className="mt-4 text-sm text-slate-500">Order not found.</p></div>;
+  }
+  if (!t) return <div><Link href="/pos/orders" className="text-sm text-brand-600">← Orders</Link><p className="mt-4 text-sm text-slate-500">Order not found.</p></div>;
   const cur = t.currency;
   const flow = STATUS_FLOW[o.status];
 

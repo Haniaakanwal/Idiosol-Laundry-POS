@@ -21,7 +21,15 @@ export async function middleware(req: NextRequest) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  return NextResponse.next();
+  // Pass the verified identity to route handlers via headers so routes can
+  // enforce tenant scoping / role checks against a value the client can't
+  // tamper with (query params and body fields are client-controlled).
+  const headers = new Headers(req.headers);
+  headers.set("x-session-id", session.id);
+  headers.set("x-session-role", session.role);
+  if (session.tenantId) headers.set("x-session-tenant-id", session.tenantId);
+
+  return NextResponse.next({ request: { headers } });
 }
 
 export const config = {

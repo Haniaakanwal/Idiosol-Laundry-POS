@@ -39,7 +39,7 @@ export async function POST(req: Request) {
     session: { role: "staff", tenantId: staff.tenantId, name: staff.name, email: staff.email, userRole: staff.role },
   });
   
-  res.cookies.set("session", await signSession({ id: staff.id, role: "staff" }), {
+  res.cookies.set("session", await signSession({ id: staff.id, role: "staff", tenantId: staff.tenantId }), {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production", // <-- FIX HERE: changed hardcoded true to dynamic env check
     sameSite: "lax",

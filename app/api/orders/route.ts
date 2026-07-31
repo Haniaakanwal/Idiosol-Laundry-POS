@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getSessionFromHeaders } from "@/lib/api-auth";
 
 function toDateStr(d: any) {
   return d ? new Date(d).toISOString().slice(0, 10) : d;
@@ -25,7 +26,14 @@ function mapOrder(row: any) {
 }
 
 export async function GET(req: Request) {
-  const tenantId = new URL(req.url).searchParams.get("tenantId");
+  const session = getSessionFromHeaders(req);
+  const requested = new URL(req.url).searchParams.get("tenantId");
+  // Staff can only ever see their own tenant's data, regardless of what the
+  // query string asks for. Only an admin session can cross tenants.
+  const tenantId = session.role === "admin" ? requested : session.tenantId;
+  if (session.role === "staff" && !tenantId) {
+    return NextResponse.json({ error: "No tenant on session" }, { status: 403 });
+  }
   const rows = await prisma.pOSOrder.findMany({
     where: tenantId ? { tenantId } : undefined,
     include: { items: true, payments: true },
@@ -34,8 +42,11 @@ export async function GET(req: Request) {
   return NextResponse.json(rows.map(mapOrder));
 }
 export async function POST(req: Request) {
+  const session = getSessionFromHeaders(req);
   const body = await req.json();
-  const { clientId, items, payments, date, deliveryDate, status, ...rest } = body;
+  const { clientId: bodyClientId, items, payments, date, deliveryDate, status, ...rest } = body;
+  const clientId = session.role === "admin" ? bodyClientId : session.tenantId;
+  if (!clientId) return NextResponse.json({ error: "No tenant on session" }, { status: 403 });
   const row = await prisma.pOSOrder.create({
     data: {
       ...rest,

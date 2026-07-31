@@ -55,7 +55,7 @@ const [error, setError] = useState<string | null>(null);
       <button
         onClick={() => {
           if (pwValue) {
-            updateUser(u.id, { passwordHash: bcrypt.hashSync(pwValue, 10), password: pwValue });
+            updateUser(u.id, { passwordHash: bcrypt.hashSync(pwValue, 10) });
           }
           setEditingPw(null);
           setPwValue("");

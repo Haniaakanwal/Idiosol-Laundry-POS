@@ -145,12 +145,18 @@ function ProvisionModal({ open, onClose }: { open: boolean; onClose: () => void 
   const set = (k: keyof NewTenantInput, v: any) => setF((p) => ({ ...p, [k]: v }));
   const autoSlug = (name: string) => name.toLowerCase().replace(/[^a-z0-9]+/g, "").slice(0, 20);
   const valid = f.name && f.slug && f.contactName && f.email;
+  const [submitting, setSubmitting] = useState(false);
 
- async function submit() {
-    if (!valid) return;
-    await addTenant(f);
-    onClose();
-    setF({ name: "", slug: "", contactName: "", email: "", phone: "", country: "", currency: "USD", locale: "en", plan: "starter", trial: true });
+  async function submit() {
+    if (!valid || submitting) return;
+    setSubmitting(true);
+    try {
+      await addTenant(f);
+      onClose();
+      setF({ name: "", slug: "", contactName: "", email: "", phone: "", country: "", currency: "USD", locale: "en", plan: "starter", trial: true });
+    } finally {
+      setSubmitting(false);
+    }
   }
   return (
     <Modal open={open} onClose={onClose} title="Provision a new client" wide>
@@ -243,7 +249,7 @@ function ProvisionModal({ open, onClose }: { open: boolean; onClose: () => void 
         <p className="text-xs text-slate-400">A new <code className="text-brand-700">clientId</code> and owner account are created automatically.</p>
         <div className="flex gap-2">
           <Button variant="secondary" onClick={onClose}>Cancel</Button>
-          <Button onClick={submit} disabled={!valid}>Provision client</Button>
+          <Button onClick={submit} disabled={!valid || submitting}>{submitting ? "Provisioning…" : "Provision client"}</Button>
         </div>
       </div>
     </Modal>

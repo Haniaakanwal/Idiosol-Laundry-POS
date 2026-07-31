@@ -183,7 +183,7 @@ return {
           }),
         });
         const owner: TenantUser = await userRes.json();
-setUsers((prev) => [{ ...owner, password: tempPassword }, ...prev]);
+setUsers((prev) => [owner, ...prev]);
         setTenants((prev) => [tenant, ...prev]);
         const ev = logEvent({ tenantId: tenant.id, tenantName: input.name, kind: "signup", message: input.trial ? "Provisioned (trial)" : "Provisioned" });
         setActivity((prev) => [ev, ...prev]);
@@ -285,7 +285,7 @@ async addUser(tenantId, u: { name: string; username: string; password: string; r
   }
 
   const user: TenantUser = await res.json();
-  setUsers((prev) => [...prev, { ...user, password: u.password }]);
+  setUsers((prev) => [...prev, user]);
 
   const newSeats = (tenants.find((t) => t.id === tenantId)?.seatsUsed ?? 0) + 1;
   setTenants((prev) => prev.map((t) => (t.id === tenantId ? { ...t, seatsUsed: newSeats } : t)));
@@ -325,7 +325,7 @@ updateUserModules(userId, overrides) {
           return { ok: false, error: "Current password is incorrect." };
         }
         const passwordHash = bcrypt.hashSync(newPassword, 10);
-        setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, passwordHash, password: newPassword } : u)));
+        setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, passwordHash } : u)));
         fetch(`/api/tenant-users/${userId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },

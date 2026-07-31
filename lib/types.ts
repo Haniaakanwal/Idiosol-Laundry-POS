@@ -61,7 +61,6 @@ export interface TenantUser {
   lastActive: string; // ISO date
   passwordHash: string;
   username: string;
-  password: string;
 moduleOverrides: Partial<Record<FeatureKey, boolean>>;
 }
 

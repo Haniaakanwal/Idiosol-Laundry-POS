@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getSessionFromHeaders } from "@/lib/api-auth";
 
 function toDateStr(d: any) {
   return d ? new Date(d).toISOString().slice(0, 10) : d;
@@ -24,7 +25,26 @@ function mapOrder(row: any) {
   };
 }
 
+export async function GET(req: Request, { params }: { params: { id: string } }) {
+  const session = getSessionFromHeaders(req);
+  const row = await prisma.pOSOrder.findUnique({
+    where: { id: params.id },
+    include: { items: true, payments: true },
+  });
+  if (!row) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (session.role !== "admin" && row.tenantId !== session.tenantId) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  return NextResponse.json(mapOrder(row));
+}
+
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
+  const session = getSessionFromHeaders(req);
+  const existing = await prisma.pOSOrder.findUnique({ where: { id: params.id }, select: { tenantId: true } });
+  if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (session.role !== "admin" && existing.tenantId !== session.tenantId) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
   const body = await req.json();
   const { newPayment, ...patch } = body;
   const data: any = { ...patch };

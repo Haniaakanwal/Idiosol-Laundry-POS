@@ -5,7 +5,7 @@ const SECRET_KEY = new TextEncoder().encode(
 );
 
 export async function signSession(
-  payload: { id: string; role: "admin" | "staff" },
+  payload: { id: string; role: "admin" | "staff"; tenantId?: string },
   maxAgeSeconds = 60 * 60 * 24 * 7
 ) {
   return await new SignJWT(payload)
@@ -17,7 +17,7 @@ export async function signSession(
 
 export async function verifySession(
   token: string | undefined | null
-): Promise<{ id: string; role: "admin" | "staff" } | null> {
+): Promise<{ id: string; role: "admin" | "staff"; tenantId?: string } | null> {
   if (!token) return null;
 
   try {
@@ -25,6 +25,7 @@ export async function verifySession(
     return {
       id: payload.id as string,
       role: payload.role as "admin" | "staff",
+      tenantId: payload.tenantId as string | undefined,
     };
   } catch {
     return null;
