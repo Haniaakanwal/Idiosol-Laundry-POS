@@ -181,11 +181,12 @@ export interface Totals {
 export function computeTotals(items: POSOrderItem[], discount: number, paid: number, TaxRate = 0): Totals {
   const sub = items.reduce((s, i) => s + i.lineTotal, 0);
   const taxable = Math.max(0, sub - discount);
-  const Tax = Math.round(taxable * (TaxRate / 100));
-  const total = Math.round(taxable + Tax);
-  const balance = Math.round(total - paid);
-  return { sub: Math.round(sub), Tax, total, balance };
+  const Tax = Math.round(taxable * (TaxRate / 100) * 100) / 100;
+  const total = Math.round((taxable + Tax) * 100) / 100;
+  const balance = Math.round((total - paid) * 100) / 100;
+  return { sub: Math.round(sub * 100) / 100, Tax, total, balance };
 }
+
 export const STATUS_FLOW: Record<OrderStatus, { next?: OrderStatus; label: string; tone: string }> = {
   Draft: { next: "Job Order", label: "Confirm order", tone: "amber" },
   "Job Order": { next: "Ready", label: "Mark ready", tone: "brand" },
