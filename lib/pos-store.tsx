@@ -1,19 +1,14 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import React, { createContext, useContext, useEffect, useMemo, useState, useRef  } from "react";
 import {
   POSCustomer,
   POSService,
   POSOrder,
   POSOrderItem,
-  POSPayment,
   OrderStatus,
-  PaymentType,
-  ServiceCategory,
-  ServiceType,
+  PaymentType, 
   seedServices,
-  seedCustomers,
-  seedOrders,
 computeTotals,
   WhatsAppMessage,
   CreditLog,
@@ -132,16 +127,16 @@ useEffect(() => {
       .then((data) => setMessages(data))
       .catch(() => {});
   }, [db.activeClientId]);
-  // Auto-provision a starter service catalog for the active tenant if it has none yet.
-  // Runs whenever the active client, or the loaded services list, changes — not just
-  // when setActiveClient() is explicitly called (activeClientId can already be set
-  // from a previous session via localStorage).
+
+  const seedAttempted = useRef<Set<string>>(new Set());
   useEffect(() => {
     const id = db.activeClientId;
     if (!ready || !servicesLoaded || !id) return;
+    if (seedAttempted.current.has(id)) return;
     if (services.some((s) => s.clientId === id)) return;
+    seedAttempted.current.add(id);
     const starter = seedServices(id).map(({ id: _drop, clientId: _drop2, ...rest }) => rest);
- fetch("/api/services/seed", {
+    fetch("/api/services/seed", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ tenantId: id, services: starter }),
