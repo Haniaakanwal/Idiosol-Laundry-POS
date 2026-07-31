@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-export async function GET() {
-  const rows = await prisma.pOSService.findMany();
+export async function GET(req: Request) {
+  const tenantId = new URL(req.url).searchParams.get("tenantId");
+  const rows = await prisma.pOSService.findMany({ where: tenantId ? { tenantId } : undefined });
   const services = rows.map(({ tenantId, ...rest }) => ({ ...rest, clientId: tenantId }));
   return NextResponse.json(services);
 }

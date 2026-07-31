@@ -6,7 +6,7 @@ import { useParams } from "next/navigation";
 import { useStore } from "@/lib/store";
 import { usePos } from "@/lib/pos-store";
 import { money } from "@/lib/format";
-import { STATUS_FLOW, PAYMENT_TYPES, PaymentType ,paymentMethodsFor } from "@/lib/pos";
+import { STATUS_FLOW, PAYMENT_TYPES, PaymentType ,paymentMethodsFor, MESSAGE_TEMPLATES } from "@/lib/pos";
 import { Card, Button, Badge, Modal, Field, inputCls } from "@/components/ui";
 import { OrderStatusBadge } from "@/components/pos/bits";
 import { ArrowLeft, Printer, Truck, CheckCircle2, Ban, MoreVertical, Wallet, MessageSquare, Send } from "lucide-react";
@@ -19,8 +19,12 @@ export default function OrderDetail() {
   const [payOpen, setPayOpen] = useState(false);
   const [pt, setPt] = useState<PaymentType>("Cash");
   const [amt, setAmt] = useState(0);
-  const [menu, setMenu] = useState(false);
+const [menu, setMenu] = useState(false);
   const [toast, setToast] = useState("");
+  const [smsOpen, setSmsOpen] = useState(false);
+  const [smsTemplate, setSmsTemplate] = useState(MESSAGE_TEMPLATES[0].id);
+  const [smsText, setSmsText] = useState(MESSAGE_TEMPLATES[0].body);
+  const [smsSending, setSmsSending] = useState(false);
   function flash(m: string) { setToast(m); setTimeout(() => setToast(""), 2600); }
 
   const o = pos.orderById(id);
@@ -129,7 +133,7 @@ export default function OrderDetail() {
                 <MenuItem icon={Wallet} label="Add payment" disabled={o.balance <= 0} onClick={() => { setMenu(false); setAmt(Math.round(o.balance)); setPayOpen(true); }} />
                 <MenuItem icon={Truck} label="Deliver order" disabled={o.status === "Delivered" || o.status === "Cancelled"} onClick={() => { setMenu(false); pos.setOrderStatus(o.id, "Delivered"); flash("Order marked delivered"); }} />
                 <MenuItem icon={Printer} label="Print order" onClick={() => { setMenu(false); window.print(); }} />
-              <MenuItem icon={MessageSquare} label="Custom SMS" onClick={() => { setMenu(false); flash(`SMS queued to ${o.customerName}`); }} />
+             <MenuItem icon={MessageSquare} label="Custom SMS" onClick={() => { setMenu(false); setSmsOpen(true); }} />
        <MenuItem icon={Send} label="Send order (WhatsApp)" onClick={async () => {
   setMenu(false);
   const balanceLine = o.balance > 0 ? ` Balance due: ${money(o.balance, cur)}.` : " Fully paid.";
@@ -253,6 +257,49 @@ export default function OrderDetail() {
           <Button disabled={amt <= 0} onClick={() => { pos.addOrderPayment(o.id, pt, amt); setPayOpen(false); }}>Record {money(amt, cur)}</Button>
         </div>
       </Modal>
+
+      {smsOpen && customer && (
+        <Modal open onClose={() => setSmsOpen(false)} title={`Send message · ${o.customerName}`}>
+          <div className="space-y-4">
+            <Field label="Template">
+              <select
+                className={inputCls}
+                value={smsTemplate}
+                onChange={(e) => {
+                  const tpl = MESSAGE_TEMPLATES.find((m) => m.id === e.target.value)!;
+                  setSmsTemplate(tpl.id);
+                  setSmsText(
+                    tpl.body
+                      .replace("{name}", o.customerName)
+                      .replace("{ref}", o.reference)
+                      .replace("{balance}", money(o.balance, cur))
+                  );
+                }}
+              >
+                {MESSAGE_TEMPLATES.map((tpl) => <option key={tpl.id} value={tpl.id}>{tpl.name}</option>)}
+              </select>
+            </Field>
+            <Field label="Message">
+              <textarea className={inputCls} rows={4} value={smsText} onChange={(e) => setSmsText(e.target.value)} />
+            </Field>
+          </div>
+          <div className="mt-5 flex justify-end gap-2 border-t border-slate-100 pt-4">
+            <Button variant="secondary" onClick={() => setSmsOpen(false)}>Cancel</Button>
+            <Button
+              disabled={!smsText.trim() || smsSending}
+              onClick={async () => {
+                setSmsSending(true);
+                const ok = await pos.sendWhatsApp(t.id, customer.id, customer.phone, smsText, o.id);
+                setSmsSending(false);
+                setSmsOpen(false);
+                flash(ok ? `Message sent to ${o.customerName}` : "Failed to send message");
+              }}
+            >
+              {smsSending ? "Sending…" : "Send"}
+            </Button>
+          </div>
+        </Modal>
+      )}
     </>
   );
 }

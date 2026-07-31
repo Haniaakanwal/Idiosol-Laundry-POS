@@ -24,14 +24,15 @@ function mapOrder(row: any) {
   };
 }
 
-export async function GET() {
+export async function GET(req: Request) {
+  const tenantId = new URL(req.url).searchParams.get("tenantId");
   const rows = await prisma.pOSOrder.findMany({
+    where: tenantId ? { tenantId } : undefined,
     include: { items: true, payments: true },
     orderBy: { createdAt: "desc" },
   });
   return NextResponse.json(rows.map(mapOrder));
 }
-
 export async function POST(req: Request) {
   const body = await req.json();
   const { clientId, items, payments, date, deliveryDate, status, ...rest } = body;

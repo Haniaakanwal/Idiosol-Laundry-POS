@@ -47,7 +47,7 @@ const [deliveryDate, setDeliveryDate] = useState(() => {
   const [payType, setPayType] = useState<PaymentType>("Cash");
   const [payAmount, setPayAmount] = useState(0);
   const [notes, setNotes] = useState("");
-
+const [submitting, setSubmitting] = useState(false);  
 const taxRate = t.taxEnabled ? t.taxRate : 0;
 const totals = useMemo(() => computeTotals(items, discount, payAmount,  taxRate), [items, discount, payAmount, taxRate]);
   const grid = services.filter((s) => !q || s.name.toLowerCase().includes(q.toLowerCase()));
@@ -89,14 +89,19 @@ const totals = useMemo(() => computeTotals(items, discount, payAmount,  taxRate)
   const canNext = customer && items.length > 0;
 
 async function submit() {
-    if (!customer || items.length === 0) return;
-    const order = pos.createOrder({
+  if (!customer || items.length === 0 || submitting) return;
+  setSubmitting(true);
+  try {
+    const order = await pos.createOrder({
       clientId: t.id, customerId: customer.id, customerName: customer.fullName, customerPhone: customer.phone,
       deliveryType, deliveryDate, pickupTime, placement, items, discount, salesman: "Admin", notes,
-payment: payAmount > 0 ? { type: payType, amount: payAmount } : undefined, taxRate,
+      payment: payAmount > 0 ? { type: payType, amount: payAmount } : undefined, taxRate,
     });
-   router.push(`/pos/orders/${(await order).id}`);
+    router.push(`/pos/orders/${order.id}`);
+  } catch (e) {
+    setSubmitting(false);
   }
+}
 
   return (
     <>
@@ -145,7 +150,7 @@ payment: payAmount > 0 ? { type: payType, amount: payAmount } : undefined, taxRa
 
         {/* RIGHT — order / customer / payment */}
         <div>
-          <Card className="sticky top-16 flex max-h-[calc(100vh-5rem)] flex-col">
+       <Card className="sticky top-16 flex max-h-[calc(100vh-5rem)] flex-col overflow-y-auto">
             {/* order header */}
             <div className="border-b border-slate-100 px-4 py-3">
               <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
@@ -170,7 +175,7 @@ payment: payAmount > 0 ? { type: payType, amount: payAmount } : undefined, taxRa
             </div>
 
             {/* cart */}
-            <div className="min-h-0 flex-1 overflow-y-auto">
+       <div className="flex-1">
               <div className="flex items-center justify-between px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
                 <span className="flex items-center gap-1.5"><ShoppingCart className="h-3.5 w-3.5" /> Items</span>
                 <span>{items.reduce((s, i) => s + i.qty, 0)} pcs</span>
@@ -299,7 +304,9 @@ payment: payAmount > 0 ? { type: payType, amount: payAmount } : undefined, taxRa
                   </div>
                   <div className="mt-3 flex gap-2">
                     <Button variant="secondary" onClick={() => setStep("build")}><ArrowLeft className="h-4 w-4" /> Back</Button>
-                    <Button className="flex-1" onClick={submit}>Create order · {money(totals.total, cur)}</Button>
+                  <Button className="flex-1" onClick={submit} disabled={submitting}>
+  {submitting ? "Creating…" : `Create order · ${money(totals.total, cur)}`}
+</Button>
                   </div>
                 </>
               )}

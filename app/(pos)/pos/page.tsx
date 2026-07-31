@@ -61,7 +61,7 @@ export default function PosDashboard() {
               <th className="px-5 py-2.5">Ref</th><th className="px-4 py-2.5">Customer</th><th className="px-4 py-2.5">Total</th><th className="px-4 py-2.5">Status</th>
             </tr></thead>
             <tbody className="divide-y divide-slate-100">
-              {orders.slice(0, 6).map((o) => (
+              {orders.slice(0,9).map((o) => (
                 <tr key={o.id} className="hover:bg-slate-50/60">
                   <td className="px-5 py-2.5"><Link href={`/pos/orders/${o.id}`} className="font-mono text-xs font-medium text-brand-600 hover:underline">{o.reference}</Link></td>
                   <td className="px-4 py-2.5 text-slate-700">{o.customerName}</td>
@@ -74,13 +74,16 @@ export default function PosDashboard() {
           </table>
         </Card>
 
-        <Card className="overflow-hidden">
-          <div className="border-b border-slate-100 px-5 py-3.5"><h2 className="text-sm font-semibold text-slate-900">Ready for pickup</h2></div>
+       <Card className="overflow-hidden">
+          <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5">
+            <h2 className="text-sm font-semibold text-slate-900">Ready for pickup</h2>
+            <Link href="/pos/orders" className="text-xs font-medium text-brand-600 hover:underline">View all ({num(ready.length)})</Link>
+          </div>
           {ready.length === 0 ? (
             <p className="px-5 py-8 text-center text-sm text-slate-400">Nothing waiting.</p>
           ) : (
             <ul className="divide-y divide-slate-100">
-              {ready.map((o) => (
+              {ready.slice(0, 6).map((o) => (
                 <li key={o.id} className="flex items-center justify-between px-5 py-3">
                   <div>
                     <Link href={`/pos/orders/${o.id}`} className="text-sm font-medium text-slate-900 hover:text-brand-600">{o.customerName}</Link>

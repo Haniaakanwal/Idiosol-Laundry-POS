@@ -82,7 +82,6 @@ addCredit: (customerId: string, amount: number, type: CreditAddMethod) => void;
 }
 
 const Ctx = createContext<PosStoreValue | null>(null);
-
 export function PosStoreProvider({ children }: { children: React.ReactNode }) {
   const [db, setDb] = useState<PosDB>(() => seed());
 const [customers, setCustomers] = useState<POSCustomer[]>([]);
@@ -91,42 +90,46 @@ const [customers, setCustomers] = useState<POSCustomer[]>([]);
 
   // Load customers from the real database (Supabase via Prisma).
   useEffect(() => {
-    fetch("/api/customers")
+    if (!db.activeClientId) return;
+    fetch(`/api/customers?tenantId=${db.activeClientId}`)
       .then((r) => r.json())
       .then((data) => setCustomers(data))
       .catch(() => {});
-  }, []);
+  }, [db.activeClientId]);
 
 const [servicesLoaded, setServicesLoaded] = useState(false);
 
 // Load services from the real database (Supabase via Prisma).
 useEffect(() => {
-    fetch("/api/services")
+    if (!db.activeClientId) return;
+    fetch(`/api/services?tenantId=${db.activeClientId}`)
       .then((r) => (r.ok ? r.json() : []))
       .then((data) => setServices(Array.isArray(data) ? data : []))
       .catch(() => {})
       .finally(() => setServicesLoaded(true));
-  }, []);
+  }, [db.activeClientId]);
 
   const [orders, setOrders] = useState<POSOrder[]>([]);
 
   // Load orders from the real database (Supabase via Prisma).
   useEffect(() => {
-    fetch("/api/orders")
+    if (!db.activeClientId) return;
+    fetch(`/api/orders?tenantId=${db.activeClientId}`)
       .then((r) => r.json())
       .then((data) => setOrders(data))
       .catch(() => {});
-  }, []);
+  }, [db.activeClientId]);
 
   const [messages, setMessages] = useState<WhatsAppMessage[]>([]);
 
   // Load WhatsApp messages from the real database (Supabase via Prisma).
   useEffect(() => {
-    fetch("/api/whatsapp-messages")
+    if (!db.activeClientId) return;
+    fetch(`/api/whatsapp-messages?tenantId=${db.activeClientId}`)
       .then((r) => r.json())
       .then((data) => setMessages(data))
       .catch(() => {});
-  }, []);
+  }, [db.activeClientId]);
   // Auto-provision a starter service catalog for the active tenant if it has none yet.
   // Runs whenever the active client, or the loaded services list, changes — not just
   // when setActiveClient() is explicitly called (activeClientId can already be set

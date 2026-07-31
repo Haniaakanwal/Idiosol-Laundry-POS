@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-export async function GET() {
-  const rows = await prisma.whatsAppMessage.findMany({ orderBy: { sentAt: "desc" } });
+export async function GET(req: Request) {
+  const tenantId = new URL(req.url).searchParams.get("tenantId");
+  const rows = await prisma.whatsAppMessage.findMany({ where: tenantId ? { tenantId } : undefined, orderBy: { sentAt: "desc" } });
   const messages = rows.map(({ tenantId, sentAt, ...rest }) => ({ ...rest, clientId: tenantId, sentAt: sentAt.toISOString() }));
   return NextResponse.json(messages);
 }

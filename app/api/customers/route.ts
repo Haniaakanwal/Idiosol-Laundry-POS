@@ -10,8 +10,10 @@ function mapCustomer(row: any) {
   };
 }
 
-export async function GET() {
+export async function GET(req: Request) {
+  const tenantId = new URL(req.url).searchParams.get("tenantId");
   const rows = await prisma.pOSCustomer.findMany({
+    where: tenantId ? { tenantId } : undefined,
     orderBy: { createdAt: "desc" },
     include: { creditLogs: { orderBy: { date: "desc" } } },
   });

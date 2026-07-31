@@ -287,6 +287,11 @@ export function seedCustomers(clientId: string): POSCustomer[] {
     note: i === 9 ? "Repeated chargebacks" : undefined,
   }));
 }
+export const MESSAGE_TEMPLATES = [
+  { id: "ready", name: "Order ready", body: "Hi {name}, your laundry order {ref} is ready for pickup. Thank you!" },
+  { id: "balance", name: "Balance reminder", body: "Dear {name}, you have an outstanding balance of {balance}. Please settle at your convenience." },
+  { id: "promo", name: "Promotion", body: "{name}, enjoy 20% off dry cleaning this week only! Visit us today." },
+];
 // Ten orders per tenant, built from its seeded services + customers.
 export function seedOrders(clientId: string, services: POSService[], customers: POSCustomer[]): POSOrder[] {
   const statuses: OrderStatus[] = ["Job Order", "Job Order", "Ready", "Ready", "Delivered", "Delivered", "Delivered", "Draft", "Cancelled", "Job Order"];

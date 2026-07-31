@@ -23,6 +23,11 @@ export default function CustomersPage() {
 const [expanded, setExpanded] = useState<string | null>(null);
 const [creditFor, setCreditFor] = useState<POSCustomer | null>(null);
   const rows = useMemo(() => customers.filter((c) => !q || c.fullName.toLowerCase().includes(q.toLowerCase()) || c.phone.includes(q)), [customers, q]);
+  const PAGE_SIZE = 50;
+  const [page, setPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+  const pagedRows = useMemo(() => rows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [rows, page]);
+  React.useEffect(() => setPage(1), [q]);
   const orderCount = (id: string) => orders.filter((o) => o.customerId === id).length;
 
   return (
@@ -45,7 +50,7 @@ const [creditFor, setCreditFor] = useState<POSCustomer | null>(null);
             <th className="px-5 py-3">Name</th><th className="px-4 py-3">Phone</th><th className="px-4 py-3">Orders</th><th className="px-4 py-3">Balance</th><th className="px-4 py-3">Credit</th><th className="px-4 py-3">Flags</th><th className="px-4 py-3"></th>
           </tr></thead>
     <tbody className="divide-y divide-slate-100">
-            {rows.map((c) => {
+            {pagedRows.map((c) => {
               const messages = pos.messagesFor(c.id);
               return (
               <React.Fragment key={c.id}>
@@ -97,6 +102,13 @@ const [creditFor, setCreditFor] = useState<POSCustomer | null>(null);
             {rows.length === 0 && <tr><td colSpan={7} className="px-5 py-12 text-center text-sm text-slate-400">No customers match.</td></tr>}
           </tbody>
         </table>
+        {totalPages > 1 && (
+          <div className="flex items-center justify-end gap-2 border-t border-slate-100 px-4 py-2">
+            <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="rounded-md px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100 disabled:opacity-30">Prev</button>
+            <span className="px-2 text-xs text-slate-500">Page {page} of {totalPages}</span>
+            <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="rounded-md px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100 disabled:opacity-30">Next</button>
+          </div>
+        )}
       </Card>
 
 <CustomerModal open={open} onClose={() => setOpen(false)} clientId={t.id} />

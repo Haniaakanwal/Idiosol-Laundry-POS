@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useStore } from "@/lib/store";
 import { usePos } from "@/lib/pos-store";
 import { money } from "@/lib/format";
@@ -22,17 +22,18 @@ export default function OrdersPage() {
   const all = pos.ordersFor(t.id);
 const searchParams = useSearchParams();
 const custFilter = searchParams.get("customerId");
-  const [q, setQ] = useState("");
+const [q, setQ] = useState("");
   const [status, setStatus] = useState<OrderStatus | "All">("All");
   const [paid, setPaid] = useState<"All" | "Paid" | "Balance">("All");
   const [delivery, setDelivery] = useState<"All" | (typeof DELIVERY_TYPES)[number]>("All");
   const [useDates, setUseDates] = useState(false);
+  useEffect(() => setPage(1), [q, status, paid, delivery, useDates]);
   const [from, setFrom] = useState("2026-06-01");
 const [to, setTo] = useState(new Date().toISOString().slice(0, 10));
-  const [sel, setSel] = useState<Set<string>>(new Set());
+const [sel, setSel] = useState<Set<string>>(new Set());
   const [toast, setToast] = useState("");
 
-  const rows = useMemo(() => all.filter((o) => {
+const rows = useMemo(() => all.filter((o) => {
     if (custFilter && o.customerId !== custFilter) return false;
     if (status !== "All" && o.status !== status) return false;
     if (paid === "Paid" && o.balance > 0) return false;
@@ -43,14 +44,18 @@ const [to, setTo] = useState(new Date().toISOString().slice(0, 10));
     return true;
   }), [all, status, paid, delivery, useDates, from, to, q]);
 
+  const PAGE_SIZE = 50;
+  const [page, setPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+  const pagedRows = useMemo(() => rows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [rows, page]);
+
   const counts = (s: OrderStatus | "All") => (s === "All" ? all.length : all.filter((o) => o.status === s).length);
   const selectedRows = rows.filter((o) => sel.has(o.id));
   const selBalance = selectedRows.reduce((s, o) => s + o.balance, 0);
   const filteredBalance = rows.reduce((s, o) => s + o.balance, 0);
-  const allSelected = rows.length > 0 && rows.every((o) => sel.has(o.id));
-
-  function toggle(id: string) { setSel((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; }); }
-  function toggleAll() { setSel(allSelected ? new Set() : new Set(rows.map((o) => o.id))); }
+  const allSelected = pagedRows.length > 0 && pagedRows.every((o) => sel.has(o.id));
+ function toggle(id: string) { setSel((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; }); }
+  function toggleAll() { setSel(allSelected ? new Set() : new Set(pagedRows.map((o) => o.id))); }
   function clearSel() { setSel(new Set()); }
   function flash(m: string) { setToast(m); setTimeout(() => setToast(""), 2600); }
 
@@ -131,7 +136,7 @@ const [to, setTo] = useState(new Date().toISOString().slice(0, 10));
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {rows.map((o) => (
+              {pagedRows.map((o) => (
                 <tr key={o.id} className={`hover:bg-slate-50/60 ${sel.has(o.id) ? "bg-brand-50/40" : ""}`}>
                   <td className="px-4 py-3"><input type="checkbox" checked={sel.has(o.id)} onChange={() => toggle(o.id)} className="h-4 w-4 rounded border-slate-300 text-brand-600" /></td>
                   <td className="px-3 py-3"><Link href={`/pos/orders/${o.id}`} className="font-mono text-xs font-medium text-brand-600 hover:underline">{o.reference}</Link></td>
@@ -145,13 +150,22 @@ const [to, setTo] = useState(new Date().toISOString().slice(0, 10));
                   <td className="px-4 py-3"><OrderStatusBadge status={o.status} /></td>
                 </tr>
               ))}
-              {rows.length === 0 && <tr><td colSpan={10} className="px-5 py-12 text-center text-sm text-slate-400">No orders match these filters.</td></tr>}
+      {pagedRows.length === 0 && <tr><td colSpan={10} className="px-5 py-12 text-center text-sm text-slate-400">No orders match these filters.</td></tr>}
             </tbody>
           </table>
         </div>
-        <div className="flex items-center justify-between border-t border-slate-100 px-5 py-2.5 text-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-5 py-2.5 text-sm">
           <span className="text-slate-500">{rows.length} order{rows.length === 1 ? "" : "s"}{useDates ? ` · ${from} → ${to}` : ""}</span>
-          <span className="text-slate-600">Total balance <b className="text-amber-600">{money(filteredBalance, cur)}</b></span>
+          <div className="flex items-center gap-3">
+            <span className="text-slate-600">Total balance <b className="text-amber-600">{money(filteredBalance, cur)}</b></span>
+            {totalPages > 1 && (
+              <div className="flex items-center gap-1">
+                <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="rounded-md px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100 disabled:opacity-30">Prev</button>
+                <span className="px-2 text-xs text-slate-500">Page {page} of {totalPages}</span>
+                <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="rounded-md px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100 disabled:opacity-30">Next</button>
+              </div>
+            )}
+          </div>
         </div>
       </Card>
     </>

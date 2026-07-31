@@ -13,12 +13,8 @@ const CHANNELS: { key: FeatureKey; label: string }[] = [
   { key: "whatsapp", label: "WhatsApp" },
   { key: "promotions", label: "Promotions" },
 ];
-
-const TEMPLATES = [
-  { id: "ready", name: "Order ready", body: "Hi {name}, your laundry order {ref} is ready for pickup. Thank you!", segment: "ready" as const },
-  { id: "balance", name: "Balance reminder", body: "Dear {name}, you have an outstanding balance of {balance}. Please settle at your convenience.", segment: "balance" as const },
-  { id: "promo", name: "Promotion", body: "{name}, enjoy 20% off dry cleaning this week only! Visit us today.", segment: "all" as const },
-];
+import { MESSAGE_TEMPLATES } from "@/lib/pos";
+const TEMPLATES = MESSAGE_TEMPLATES.map((t) => ({ ...t, segment: t.id === "ready" ? ("ready" as const) : t.id === "balance" ? ("balance" as const) : ("all" as const) }));
 
 export default function MarketingPage() {
 const { tenants, plans } = useStore();

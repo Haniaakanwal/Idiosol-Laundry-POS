@@ -45,8 +45,9 @@ const [open, setOpen] = useState<string | null>("dailyCash");
   const [dcFrom, setDcFrom] = useState("2026-01-01");
   const [dcTo, setDcTo] = useState(todayIso);
   const [dcType, setDcType] = useState<"All" | (typeof PAYMENT_TYPES)[number]>("All");
+  const [dcApplied, setDcApplied] = useState(false);
 
-  const dcRows = orders
+  const dcRows = !dcApplied ? [] : orders
     .flatMap((o) => o.payments.map((p) => ({ order: o, payment: p })))
     .filter(({ payment }) => payment.date >= dcFrom && payment.date <= dcTo)
     .filter(({ payment }) => dcType === "All" || payment.type === dcType)
@@ -67,8 +68,9 @@ const [open, setOpen] = useState<string | null>("dailyCash");
   const [rvFrom, setRvFrom] = useState("2026-01-01");
   const [rvTo, setRvTo] = useState(todayIso);
   const [rvService, setRvService] = useState<"All" | (typeof SERVICE_TYPES)[number]>("All");
+  const [rvApplied, setRvApplied] = useState(false);
 
-  const rvItems = orders
+  const rvItems = !rvApplied ? [] : orders
     .filter((o) => o.date >= rvFrom && o.date <= rvTo)
     .flatMap((o) => o.items)
     .filter((it) => rvService === "All" || it.serviceType === rvService);
@@ -85,16 +87,20 @@ const [open, setOpen] = useState<string | null>("dailyCash");
   // --- Job Order Report ---
   const [joFrom, setJoFrom] = useState("2026-01-01");
   const [joTo, setJoTo] = useState(todayIso);
-  const joRows = orders
+  const [joApplied, setJoApplied] = useState(false);
+  const joRows = !joApplied ? [] : orders
     .filter((o) => o.date >= joFrom && o.date <= joTo)
     .sort((a, b) => a.date.localeCompare(b.date));
 
   // --- Top Services ---
   const [tsFrom, setTsFrom] = useState("2026-01-01");
   const [tsTo, setTsTo] = useState(todayIso);
+  const [tsApplied, setTsApplied] = useState(false);
   const svcMap = new Map<string, number>();
-  for (const o of orders.filter((o) => o.date >= tsFrom && o.date <= tsTo)) {
-    for (const it of o.items) svcMap.set(it.serviceName, (svcMap.get(it.serviceName) ?? 0) + it.qty);
+  if (tsApplied) {
+    for (const o of orders.filter((o) => o.date >= tsFrom && o.date <= tsTo)) {
+      for (const it of o.items) svcMap.set(it.serviceName, (svcMap.get(it.serviceName) ?? 0) + it.qty);
+    }
   }
  const topSvc = Array.from(svcMap.entries()).sort((a, b) => b[1] - a[1]);
   const maxSvc = Math.max(1, ...topSvc.map((s) => s[1]));
@@ -102,7 +108,8 @@ const [open, setOpen] = useState<string | null>("dailyCash");
   // --- VAT Reports ---
   const [vatFrom, setVatFrom] = useState("2026-01-01");
   const [vatTo, setVatTo] = useState(todayIso);
-  const vatRows = orders
+  const [vatApplied, setVatApplied] = useState(false);
+  const vatRows = !vatApplied ? [] : orders
     .filter((o) => o.date >= vatFrom && o.date <= vatTo && (o.tax ?? 0) > 0)
     .sort((a, b) => a.date.localeCompare(b.date));
   const vatTotals = vatRows.reduce(
@@ -144,7 +151,11 @@ const [open, setOpen] = useState<string | null>("dailyCash");
                 {PAYMENT_TYPES.map((pt) => <option key={pt} value={pt}>{pt}</option>)}
               </select>
             </div>
+            <button onClick={() => setDcApplied(true)} className="rounded-lg bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-700">Apply</button>
           </div>
+          {!dcApplied ? (
+            <p className="py-6 text-center text-sm text-slate-400">Set your filters and click Apply to load this report.</p>
+          ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -194,6 +205,7 @@ const [open, setOpen] = useState<string | null>("dailyCash");
               )}
             </table>
           </div>
+          )}
         </ReportSection>
 
   <ReportSection
@@ -214,7 +226,11 @@ const [open, setOpen] = useState<string | null>("dailyCash");
                 {SERVICE_TYPES.map((s) => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
+            <button onClick={() => setRvApplied(true)} className="rounded-lg bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-700">Apply</button>
           </div>
+          {!rvApplied ? (
+            <p className="py-6 text-center text-sm text-slate-400">Set your filters and click Apply to load this report.</p>
+          ) : (
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-100 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
@@ -247,6 +263,7 @@ const [open, setOpen] = useState<string | null>("dailyCash");
               </tfoot>
             )}
           </table>
+          )}
         </ReportSection>
 
 <ReportSection
@@ -260,7 +277,11 @@ const [open, setOpen] = useState<string | null>("dailyCash");
           <div className="mb-4 flex flex-wrap items-end gap-3">
             <div><div className="mb-1 text-xs text-slate-400">Date From</div><input type="date" value={joFrom} onChange={(e) => setJoFrom(e.target.value)} className={inputCls} /></div>
             <div><div className="mb-1 text-xs text-slate-400">Date To</div><input type="date" value={joTo} onChange={(e) => setJoTo(e.target.value)} className={inputCls} /></div>
+            <button onClick={() => setJoApplied(true)} className="rounded-lg bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-700">Apply</button>
           </div>
+          {!joApplied ? (
+            <p className="py-6 text-center text-sm text-slate-400">Set your filters and click Apply to load this report.</p>
+          ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -292,6 +313,7 @@ const [open, setOpen] = useState<string | null>("dailyCash");
               </tbody>
             </table>
           </div>
+          )}
         </ReportSection>
 
  <ReportSection
@@ -305,7 +327,11 @@ const [open, setOpen] = useState<string | null>("dailyCash");
           <div className="mb-4 flex flex-wrap items-end gap-3">
             <div><div className="mb-1 text-xs text-slate-400">Date From</div><input type="date" value={tsFrom} onChange={(e) => setTsFrom(e.target.value)} className={inputCls} /></div>
             <div><div className="mb-1 text-xs text-slate-400">Date To</div><input type="date" value={tsTo} onChange={(e) => setTsTo(e.target.value)} className={inputCls} /></div>
+            <button onClick={() => setTsApplied(true)} className="rounded-lg bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-700">Apply</button>
           </div>
+          {!tsApplied ? (
+            <p className="py-6 text-center text-sm text-slate-400">Set your filters and click Apply to load this report.</p>
+          ) : (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {topSvc.map(([name, q]) => (
               <div key={name}>
@@ -317,6 +343,7 @@ const [open, setOpen] = useState<string | null>("dailyCash");
             ))}
             {topSvc.length === 0 && <p className="col-span-full py-6 text-center text-sm text-slate-400">No items in this range.</p>}
           </div>
+          )}
         </ReportSection>
 
   <ReportSection
@@ -330,7 +357,11 @@ const [open, setOpen] = useState<string | null>("dailyCash");
           <div className="mb-4 flex flex-wrap items-end gap-3">
             <div><div className="mb-1 text-xs text-slate-400">Date From</div><input type="date" value={vatFrom} onChange={(e) => setVatFrom(e.target.value)} className={inputCls} /></div>
             <div><div className="mb-1 text-xs text-slate-400">Date To</div><input type="date" value={vatTo} onChange={(e) => setVatTo(e.target.value)} className={inputCls} /></div>
+            <button onClick={() => setVatApplied(true)} className="rounded-lg bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-700">Apply</button>
           </div>
+          {!vatApplied ? (
+            <p className="py-6 text-center text-sm text-slate-400">Set your filters and click Apply to load this report.</p>
+          ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -371,6 +402,7 @@ const [open, setOpen] = useState<string | null>("dailyCash");
               )}
             </table>
           </div>
+          )}
         </ReportSection>
       </div>
     </>
