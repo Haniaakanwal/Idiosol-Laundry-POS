@@ -27,19 +27,78 @@ function mapOrder(row: any) {
 
 export async function GET(req: Request) {
   const session = getSessionFromHeaders(req);
-  const requested = new URL(req.url).searchParams.get("tenantId");
+  const url = new URL(req.url);
+  const requested = url.searchParams.get("tenantId");
   // Staff can only ever see their own tenant's data, regardless of what the
   // query string asks for. Only an admin session can cross tenants.
   const tenantId = session.role === "admin" ? requested : session.tenantId;
   if (session.role === "staff" && !tenantId) {
     return NextResponse.json({ error: "No tenant on session" }, { status: 403 });
   }
-  const rows = await prisma.pOSOrder.findMany({
-    where: tenantId ? { tenantId } : undefined,
-    include: { items: true, payments: true },
-    orderBy: { createdAt: "desc" },
+
+  const page = url.searchParams.get("page");
+
+  // Legacy behavior: no `page` param → return everything (dashboard, reports,
+  // payments page, and the in-memory store still rely on this).
+  if (!page) {
+    const rows = await prisma.pOSOrder.findMany({
+      where: tenantId ? { tenantId } : undefined,
+      include: { items: true, payments: true },
+      orderBy: { createdAt: "desc" },
+    });
+    return NextResponse.json(rows.map(mapOrder));
+  }
+
+  // Real server-side pagination + filtering, used by the Orders list page so
+  // it never has to download the tenant's full order history just to show 50 rows.
+  const limit = Math.min(200, Math.max(1, Number(url.searchParams.get("limit")) || 50));
+  const pageNum = Math.max(1, Number(page) || 1);
+  const q = url.searchParams.get("q")?.trim();
+  const status = url.searchParams.get("status");
+  const paid = url.searchParams.get("paid"); // "Paid" | "Balance"
+  const delivery = url.searchParams.get("delivery");
+  const customerId = url.searchParams.get("customerId");
+  const dateFrom = url.searchParams.get("dateFrom");
+  const dateTo = url.searchParams.get("dateTo");
+
+  const where: any = { ...(tenantId ? { tenantId } : {}) };
+  if (customerId) where.customerId = customerId;
+  if (status && status !== "All") where.status = toPrismaStatus(status);
+  if (delivery && delivery !== "All") where.deliveryType = delivery;
+  if (paid === "Paid") where.balance = { lte: 0 };
+  if (paid === "Balance") where.balance = { gt: 0 };
+  if (dateFrom || dateTo) {
+    where.date = {};
+    if (dateFrom) where.date.gte = new Date(dateFrom);
+    if (dateTo) where.date.lte = new Date(dateTo);
+  }
+  if (q) {
+    where.OR = [
+      { reference: { contains: q, mode: "insensitive" } },
+      { customerName: { contains: q, mode: "insensitive" } },
+      { customerPhone: { contains: q } },
+    ];
+  }
+
+  const [rows, total, balanceAgg, statusCounts] = await Promise.all([
+    prisma.pOSOrder.findMany({
+      where,
+      include: { items: true, payments: true },
+      orderBy: { createdAt: "desc" },
+      skip: (pageNum - 1) * limit,
+      take: limit,
+    }),
+    prisma.pOSOrder.count({ where }),
+    prisma.pOSOrder.aggregate({ where, _sum: { balance: true } }),
+    prisma.pOSOrder.groupBy({ by: ["status"], where: tenantId ? { tenantId } : undefined, _count: true }),
+  ]);
+
+  return NextResponse.json({
+    rows: rows.map(mapOrder),
+    total,
+    totalBalance: balanceAgg._sum.balance ?? 0,
+    statusCounts: Object.fromEntries(statusCounts.map((s) => [toAppStatus(s.status), s._count])),
   });
-  return NextResponse.json(rows.map(mapOrder));
 }
 export async function POST(req: Request) {
   const session = getSessionFromHeaders(req);

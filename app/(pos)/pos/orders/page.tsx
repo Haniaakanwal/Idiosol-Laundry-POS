@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useStore } from "@/lib/store";
 import { usePos } from "@/lib/pos-store";
 import { money } from "@/lib/format";
@@ -13,62 +13,82 @@ import { useSearchParams } from "next/navigation";
 
 
 const STATUS_FILTERS: (OrderStatus | "All")[] = ["All", ...ORDER_STATUSES];
+const PAGE_SIZE = 50;
 
 export default function OrdersPage() {
   const { tenants } = useStore();
   const pos = usePos();
   const t = tenants.find((x) => x.id === pos.activeClientId)!;
   const cur = t.currency;
-  const all = pos.ordersFor(t.id);
-const searchParams = useSearchParams();
-const custFilter = searchParams.get("customerId");
-const [q, setQ] = useState("");
+  const searchParams = useSearchParams();
+  const custFilter = searchParams.get("customerId");
+  const [qInput, setQInput] = useState("");
+  const [q, setQ] = useState(""); // debounced value actually sent to the server
   const [status, setStatus] = useState<OrderStatus | "All">("All");
   const [paid, setPaid] = useState<"All" | "Paid" | "Balance">("All");
   const [delivery, setDelivery] = useState<"All" | (typeof DELIVERY_TYPES)[number]>("All");
   const [useDates, setUseDates] = useState(false);
-  useEffect(() => setPage(1), [q, status, paid, delivery, useDates]);
   const [from, setFrom] = useState("2026-06-01");
-const [to, setTo] = useState(new Date().toISOString().slice(0, 10));
-const [sel, setSel] = useState<Set<string>>(new Set());
+  const [to, setTo] = useState(new Date().toISOString().slice(0, 10));
+  const [sel, setSel] = useState<Set<string>>(new Set());
   const [toast, setToast] = useState("");
-
-const rows = useMemo(() => all.filter((o) => {
-    if (custFilter && o.customerId !== custFilter) return false;
-    if (status !== "All" && o.status !== status) return false;
-    if (paid === "Paid" && o.balance > 0) return false;
-    if (paid === "Balance" && o.balance <= 0) return false;
-    if (delivery !== "All" && o.deliveryType !== delivery) return false;
-    if (useDates && (o.date < from || o.date > to)) return false;
-    if (q) { const s = q.toLowerCase(); return o.reference.toLowerCase().includes(s) || o.customerName.toLowerCase().includes(s) || o.customerPhone.includes(q); }
-    return true;
-  }), [all, status, paid, delivery, useDates, from, to, q]);
-
-  const PAGE_SIZE = 50;
   const [page, setPage] = useState(1);
-  const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
-  const pagedRows = useMemo(() => rows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [rows, page]);
 
-  const counts = (s: OrderStatus | "All") => (s === "All" ? all.length : all.filter((o) => o.status === s).length);
-  const selectedRows = rows.filter((o) => sel.has(o.id));
+  // Debounce the free-text search so we don't fire a request on every keystroke.
+  useEffect(() => {
+    const id = setTimeout(() => setQ(qInput), 300);
+    return () => clearTimeout(id);
+  }, [qInput]);
+  useEffect(() => setPage(1), [q, status, paid, delivery, useDates, from, to]);
+
+  // Server-side pagination: fetch only the current page's rows, filtered and
+  // counted on the server, instead of loading the tenant's entire order history.
+  const [data, setData] = useState<{ rows: any[]; total: number; totalBalance: number; statusCounts: Record<string, number> }>({ rows: [], total: 0, totalBalance: 0, statusCounts: {} });
+  const [loading, setLoading] = useState(true);
+  const [refreshTick, setRefreshTick] = useState(0);
+  const reqId = useRef(0);
+
+  useEffect(() => {
+    const myReqId = ++reqId.current;
+    setLoading(true);
+    const params = new URLSearchParams({ tenantId: t.id, page: String(page), limit: String(PAGE_SIZE) });
+    if (q) params.set("q", q);
+    if (status !== "All") params.set("status", status);
+    if (paid !== "All") params.set("paid", paid);
+    if (delivery !== "All") params.set("delivery", delivery);
+    if (custFilter) params.set("customerId", custFilter);
+    if (useDates) { params.set("dateFrom", from); params.set("dateTo", to); }
+    fetch(`/api/orders?${params.toString()}`)
+      .then((r) => r.json())
+      .then((d) => { if (myReqId === reqId.current) setData(d); })
+      .finally(() => { if (myReqId === reqId.current) setLoading(false); });
+  }, [t.id, page, q, status, paid, delivery, useDates, from, to, custFilter, refreshTick]);
+
+  const pagedRows = data.rows;
+  const totalPages = Math.max(1, Math.ceil(data.total / PAGE_SIZE));
+  const counts = (s: OrderStatus | "All") => (s === "All" ? Object.values(data.statusCounts).reduce((a, b) => a + b, 0) : data.statusCounts[s] ?? 0);
+  const allOrdersCount = Object.values(data.statusCounts).reduce((a, b) => a + b, 0);
+
+  const selectedRows = pagedRows.filter((o) => sel.has(o.id));
   const selBalance = selectedRows.reduce((s, o) => s + o.balance, 0);
-  const filteredBalance = rows.reduce((s, o) => s + o.balance, 0);
+  const filteredBalance = data.totalBalance;
   const allSelected = pagedRows.length > 0 && pagedRows.every((o) => sel.has(o.id));
  function toggle(id: string) { setSel((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; }); }
   function toggleAll() { setSel(allSelected ? new Set() : new Set(pagedRows.map((o) => o.id))); }
   function clearSel() { setSel(new Set()); }
   function flash(m: string) { setToast(m); setTimeout(() => setToast(""), 2600); }
+  function refresh() { setRefreshTick((n) => n + 1); }
 
   const ids = Array.from(sel);
-  function payAll() { const n = selectedRows.filter((o) => o.balance > 0).length; pos.bulkPay(ids, "Cash"); flash(`Collected ${money(selBalance, cur)} across ${n} order${n === 1 ? "" : "s"} (Cash)`); clearSel(); }
-  function readyAll() { pos.bulkStatus(ids, "Ready"); flash(`${ids.length} order${ids.length === 1 ? "" : "s"} marked Ready`); clearSel(); }
-  function deliverAll() { pos.bulkStatus(ids, "Delivered"); flash(`${ids.length} order${ids.length === 1 ? "" : "s"} delivered`); clearSel(); }
+  function payAll() { const n = selectedRows.filter((o) => o.balance > 0).length; pos.bulkPay(ids, "Cash"); flash(`Collected ${money(selBalance, cur)} across ${n} order${n === 1 ? "" : "s"} (Cash)`); clearSel(); refresh(); }
+  function readyAll() { pos.bulkStatus(ids, "Ready"); flash(`${ids.length} order${ids.length === 1 ? "" : "s"} marked Ready`); clearSel(); refresh(); }
+  function deliverAll() { pos.bulkStatus(ids, "Delivered"); flash(`${ids.length} order${ids.length === 1 ? "" : "s"} delivered`); clearSel(); refresh(); }
   function sendSms(kind: string) { flash(`Queued ${kind} SMS to ${ids.length} customer${ids.length === 1 ? "" : "s"}`); }
 
   return (
     <>
       <div className="mb-4 flex items-center justify-between">
-        <div><h1 className="text-xl font-semibold text-slate-900">Orders</h1><p className="text-sm text-slate-500">Job order history · {all.length} orders</p></div>
+        <div><h1 className="text-xl font-semibold text-slate-900">Orders</h1><p className="text-sm text-slate-500">Job order history · {allOrdersCount} orders</p></div>
         <Link href="/pos/new"><Button><PlusCircle className="h-4 w-4" /> New order</Button></Link>
       </div>
 
@@ -77,7 +97,7 @@ const rows = useMemo(() => all.filter((o) => {
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative min-w-[200px] flex-1">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search ref, customer, phone…" className={`${inputCls} pl-9`} />
+            <input value={qInput} onChange={(e) => setQInput(e.target.value)} placeholder="Search ref, customer, phone…" className={`${inputCls} pl-9`} />
           </div>
           <select value={paid} onChange={(e) => setPaid(e.target.value as any)} className={`${inputCls} w-auto`}>
             <option value="All">Paid status: All</option>
@@ -136,7 +156,10 @@ const rows = useMemo(() => all.filter((o) => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {pagedRows.map((o) => (
+              {loading && (
+                <tr><td colSpan={10} className="px-5 py-12 text-center text-sm text-slate-400">Loading…</td></tr>
+              )}
+              {!loading && pagedRows.map((o) => (
                 <tr key={o.id} className={`hover:bg-slate-50/60 ${sel.has(o.id) ? "bg-brand-50/40" : ""}`}>
                   <td className="px-4 py-3"><input type="checkbox" checked={sel.has(o.id)} onChange={() => toggle(o.id)} className="h-4 w-4 rounded border-slate-300 text-brand-600" /></td>
                   <td className="px-3 py-3"><Link href={`/pos/orders/${o.id}`} className="font-mono text-xs font-medium text-brand-600 hover:underline">{o.reference}</Link></td>
@@ -150,12 +173,12 @@ const rows = useMemo(() => all.filter((o) => {
                   <td className="px-4 py-3"><OrderStatusBadge status={o.status} /></td>
                 </tr>
               ))}
-      {pagedRows.length === 0 && <tr><td colSpan={10} className="px-5 py-12 text-center text-sm text-slate-400">No orders match these filters.</td></tr>}
+      {!loading && pagedRows.length === 0 && <tr><td colSpan={10} className="px-5 py-12 text-center text-sm text-slate-400">No orders match these filters.</td></tr>}
             </tbody>
           </table>
         </div>
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-5 py-2.5 text-sm">
-          <span className="text-slate-500">{rows.length} order{rows.length === 1 ? "" : "s"}{useDates ? ` · ${from} → ${to}` : ""}</span>
+          <span className="text-slate-500">{data.total} order{data.total === 1 ? "" : "s"}{useDates ? ` · ${from} → ${to}` : ""}</span>
           <div className="flex items-center gap-3">
             <span className="text-slate-600">Total balance <b className="text-amber-600">{money(filteredBalance, cur)}</b></span>
             {totalPages > 1 && (
