@@ -166,7 +166,7 @@ export default function OrdersPage() {
                   <td className="px-4 py-3"><div className="font-medium text-slate-800">{o.customerName}</div><div className="text-xs text-slate-400">{o.customerPhone}</div></td>
                   <td className="px-4 py-3 text-slate-500">{o.date}</td>
                   <td className="px-4 py-3 text-slate-600">{o.deliveryType}</td>
-                  <td className="px-4 py-3 text-slate-600">{o.items.reduce((s, i) => s + i.qty, 0)}</td>
+<td className="px-4 py-3 text-slate-600">{o.items.reduce((s: number, i: any) => s + i.qty, 0)}</td>
                   <td className="px-4 py-3 font-medium text-slate-900">{money(o.total, cur)}</td>
                   <td className="px-4 py-3 text-slate-600">{money(o.paid, cur)}</td>
                   <td className="px-4 py-3">{o.balance > 0 ? <span className="font-medium text-amber-600">{money(o.balance, cur)}</span> : <span className="text-emerald-600">Paid</span>}</td>
