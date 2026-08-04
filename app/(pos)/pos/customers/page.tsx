@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useStore } from "@/lib/store";
 import { usePos } from "@/lib/pos-store";
 import { money } from "@/lib/format";
@@ -16,7 +16,18 @@ export default function CustomersPage() {
   const t = tenants.find((x) => x.id === pos.activeClientId)!;
   const cur = t.currency;
   const customers = pos.customersFor(t.id);
-  const orders = pos.ordersFor(t.id);
+  // Per-customer order count + outstanding balance, computed server-side
+  // (see /api/customers/order-stats) instead of scanning every order for
+  // every customer row in the browser.
+  const [stats, setStats] = useState<Record<string, { orderCount: number; balance: number }>>({});
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/customers/order-stats?tenantId=${t.id}`)
+      .then((r) => (r.ok ? r.json() : {}))
+      .then((data) => { if (!cancelled) setStats(data); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [t.id]);
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
   const [edit, setEdit] = useState<POSCustomer | null>(null);
@@ -28,7 +39,8 @@ const [creditFor, setCreditFor] = useState<POSCustomer | null>(null);
   const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
   const pagedRows = useMemo(() => rows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [rows, page]);
   React.useEffect(() => setPage(1), [q]);
-  const orderCount = (id: string) => orders.filter((o) => o.customerId === id).length;
+  const orderCount = (id: string) => stats[id]?.orderCount ?? 0;
+  const balanceFor = (id: string) => stats[id]?.balance ?? 0;
 
   return (
     <>
@@ -62,7 +74,7 @@ const [creditFor, setCreditFor] = useState<POSCustomer | null>(null);
     <ShoppingBag className="h-3.5 w-3.5" /> {orderCount(c.id)}
   </Link>
 </td>
-               <td className="px-4 py-3">{pos.balanceFor(c.id) > 0 ? <span className="font-medium text-amber-600">{money(pos.balanceFor(c.id), cur)}</span> : <span className="text-slate-400">—</span>}</td>
+               <td className="px-4 py-3">{balanceFor(c.id) > 0 ? <span className="font-medium text-amber-600">{money(balanceFor(c.id), cur)}</span> : <span className="text-slate-400">—</span>}</td>
 <td className="px-4 py-3">
                   <button
                     onClick={(e) => { e.stopPropagation(); setCreditFor(c); }}

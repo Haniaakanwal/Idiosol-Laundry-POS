@@ -8,32 +8,7 @@ import { isFeatureOn } from "@/lib/catalog";
 import { money, num } from "@/lib/format";
 import { Card, Button, Badge } from "@/components/ui";
 import { OrderStatusBadge } from "@/components/pos/bits";
-import { OrderStatus } from "@/lib/pos";
 import { PlusCircle, ClipboardList, Wallet, PackageCheck, Clock } from "lucide-react";
-
-interface RecentOrder {
-  id: string;
-  reference: string;
-  customerName: string;
-  total: number;
-  status: OrderStatus;
-}
-interface ReadyOrder {
-  id: string;
-  reference: string;
-  customerName: string;
-  balance: number;
-  itemsCount: number;
-}
-interface OrderSummary {
-  gross: number;
-  collected: number;
-  outstanding: number;
-  totalCount: number;
-  statusCounts: Record<string, number>;
-  recent?: RecentOrder[];
-  ready?: ReadyOrder[];
-}
 
 export default function PosDashboard() {
   const { tenants, plans} = useStore(); // Add loading state if available
@@ -41,15 +16,17 @@ export default function PosDashboard() {
 
   const t = tenants.find((x) => x.id === pos.activeClientId);
 
-  const [summary, setSummary] = useState<OrderSummary | null>(null);
+  // Server-computed KPI totals — the DB sums/counts these, no order rows are downloaded for it.
+  const [summary, setSummary] = useState<{ totalOrders: number; grossSales: number; collected: number; outstanding: number; statusCounts: Record<string, number> } | null>(null);
+  // Small, targeted lists — only the handful of rows actually rendered, fetched directly instead of sliced from a full in-memory array.
+  const [recent, setRecent] = useState<any[]>([]);
+  const [ready, setReady] = useState<{ rows: any[]; total: number }>({ rows: [], total: 0 });
+
   useEffect(() => {
     if (!t) return;
-    let cancelled = false;
-    fetch(`/api/orders/summary?tenantId=${t.id}&include=lists`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => { if (!cancelled) setSummary(data); })
-      .catch(() => {});
-    return () => { cancelled = true; };
+    fetch(`/api/orders/summary?tenantId=${t.id}`).then((r) => r.json()).then(setSummary).catch(() => {});
+    fetch(`/api/orders?tenantId=${t.id}&page=1&limit=9`).then((r) => r.json()).then((d) => setRecent(d.rows ?? [])).catch(() => {});
+    fetch(`/api/orders?tenantId=${t.id}&page=1&limit=6&status=Ready`).then((r) => r.json()).then((d) => setReady({ rows: d.rows ?? [], total: d.total ?? 0 })).catch(() => {});
   }, [t?.id]);
 
   // 1. Guard against empty or loading tenant state
@@ -61,20 +38,12 @@ export default function PosDashboard() {
     );
   }
 
-  // 2. Safe to access 't' properties once confirmed defined
   const cur = t.currency;
-  // Everything here — the 4 KPI cards, the 9 recent orders, the 6 ready-for-
-  // pickup orders — comes from a single server-side call (/api/orders/summary)
-  // that does the counting/summing/limiting in SQL. None of it depends on the
-  // full tenant order list being loaded into the browser, so this page stays
-  // fast even once a tenant has 10,000+ orders.
   const collected = summary?.collected ?? 0;
   const outstanding = summary?.outstanding ?? 0;
+  const totalOrders = summary?.totalOrders ?? 0;
+  const activeCount = summary?.statusCounts?.["Job Order"] ?? 0;
   const readyCount = summary?.statusCounts?.["Ready"] ?? 0;
-  const openCount = summary?.statusCounts?.["Job Order"] ?? 0;
-  const totalCount = summary?.totalCount ?? 0;
-  const recent = summary?.recent ?? [];
-  const ready = summary?.ready ?? [];
   const canPOS = isFeatureOn(plans, t.plan, t.featureOverrides, "pos");
 
   return (
@@ -88,7 +57,7 @@ export default function PosDashboard() {
       </div>
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <Kpi icon={ClipboardList} tone="brand" label="Open orders" value={num(openCount)} sub={`${num(totalCount)} total`} />
+        <Kpi icon={ClipboardList} tone="brand" label="Open orders" value={num(activeCount)} sub={`${totalOrders} total`} />
         <Kpi icon={PackageCheck} tone="green" label="Ready for pickup" value={num(readyCount)} sub="Awaiting collection" />
         <Kpi icon={Wallet} tone="violet" label="Collected" value={money(collected, cur)} sub="All-time payments" />
         <Kpi icon={Clock} tone="amber" label="Outstanding" value={money(outstanding, cur)} sub="Unpaid balances" />
@@ -121,17 +90,17 @@ export default function PosDashboard() {
        <Card className="overflow-hidden">
           <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5">
             <h2 className="text-sm font-semibold text-slate-900">Ready for pickup</h2>
-            <Link href="/pos/orders" className="text-xs font-medium text-brand-600 hover:underline">View all ({num(readyCount)})</Link>
+            <Link href="/pos/orders" className="text-xs font-medium text-brand-600 hover:underline">View all ({num(ready.total)})</Link>
           </div>
-          {ready.length === 0 ? (
+          {ready.rows.length === 0 ? (
             <p className="px-5 py-8 text-center text-sm text-slate-400">Nothing waiting.</p>
           ) : (
             <ul className="divide-y divide-slate-100">
-              {ready.map((o) => (
+              {ready.rows.map((o) => (
                 <li key={o.id} className="flex items-center justify-between px-5 py-3">
                   <div>
                     <Link href={`/pos/orders/${o.id}`} className="text-sm font-medium text-slate-900 hover:text-brand-600">{o.customerName}</Link>
-                    <div className="text-xs text-slate-400">{o.reference} · {o.itemsCount} items</div>
+                    <div className="text-xs text-slate-400">{o.reference} · {o.items.length} items</div>
                   </div>
                   {o.balance > 0 ? <Badge tone="amber">{money(o.balance, cur)} due</Badge> : <Badge tone="green">paid</Badge>}
                 </li>

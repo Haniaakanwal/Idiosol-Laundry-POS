@@ -8,8 +8,10 @@ import { PAYMENT_TYPES, SERVICE_TYPES } from "@/lib/pos";
 import { Card, inputCls } from "@/components/ui";
 import { ChevronRight, ChevronDown, Printer } from "lucide-react";
 
+const PAGE_SIZE = 50;
+
 interface SummaryResp {
-  gross: number;
+  grossSales: number;
   collected: number;
   outstanding: number;
 }
@@ -26,6 +28,7 @@ interface DailyCashRow {
 }
 interface DailyCashResp {
   rows: DailyCashRow[];
+  total: number;
   totals: { amount: number; vat: number; total: number };
 }
 
@@ -48,6 +51,10 @@ interface JobOrderRow {
   total: number;
   paid: number;
   balance: number;
+}
+interface JobOrderResp {
+  rows: JobOrderRow[];
+  total: number;
 }
 
 interface VatRow {
@@ -84,7 +91,7 @@ export default function ReportsPage() {
       .catch(() => {});
     return () => { cancelled = true; };
   }, [t.id]);
-  const gross = summary?.gross ?? 0;
+  const gross = summary?.grossSales ?? 0;
   const collected = summary?.collected ?? 0;
   const outstanding = summary?.outstanding ?? 0;
 
@@ -107,11 +114,10 @@ export default function ReportsPage() {
     window.addEventListener("afterprint", reset);
     return () => { clearTimeout(timer); window.removeEventListener("afterprint", reset); };
   }, [printKey]);
-
-  function reportUrl(kind: string, params: Record<string, string>) {
-    const qs = new URLSearchParams({ tenantId: t.id, kind, ...params });
-    return `/api/orders/reports?${qs.toString()}`;
-  }
+function reportUrl(kind: string, params: Record<string, string>) {
+  const qs = new URLSearchParams({ tenantId: t.id, kind, ...params });
+  return `/api/reports?${qs.toString()}`;
+}
 
   // --- Daily Cash Report ---
   const [dcFrom, setDcFrom] = useState("2026-01-01");
@@ -120,17 +126,28 @@ export default function ReportsPage() {
   const [dcApplied, setDcApplied] = useState(false);
   const [dcLoading, setDcLoading] = useState(false);
   const [dcData, setDcData] = useState<DailyCashResp | null>(null);
-  function applyDailyCash() {
-    setDcApplied(true);
+  const [dcPage, setDcPage] = useState(1);
+  function fetchDailyCash(pageNum: number) {
     setDcLoading(true);
-    fetch(reportUrl("dailyCash", { from: dcFrom, to: dcTo, type: dcType }))
+    fetch(reportUrl("dailyCash", { from: dcFrom, to: dcTo, type: dcType, page: String(pageNum), limit: String(PAGE_SIZE) }))
       .then((r) => (r.ok ? r.json() : null))
       .then(setDcData)
       .catch(() => setDcData(null))
       .finally(() => setDcLoading(false));
   }
+  function applyDailyCash() {
+    setDcApplied(true);
+    setDcPage(1);
+    fetchDailyCash(1);
+  }
+  function dcGoToPage(pageNum: number) {
+    setDcPage(pageNum);
+    fetchDailyCash(pageNum);
+  }
   const dcRows = dcData?.rows ?? [];
+  const dcTotal = dcData?.total ?? 0;
   const dcTotals = dcData?.totals ?? { amount: 0, vat: 0, total: 0 };
+  const dcTotalPages = Math.max(1, Math.ceil(dcTotal / PAGE_SIZE));
 
   // --- Receiving Report ---
   const [rvFrom, setRvFrom] = useState("2026-01-01");
@@ -156,16 +173,28 @@ export default function ReportsPage() {
   const [joTo, setJoTo] = useState(todayIso);
   const [joApplied, setJoApplied] = useState(false);
   const [joLoading, setJoLoading] = useState(false);
-  const [joRows, setJoRows] = useState<JobOrderRow[]>([]);
-  function applyJobOrder() {
-    setJoApplied(true);
+  const [joData, setJoData] = useState<JobOrderResp | null>(null);
+  const [joPage, setJoPage] = useState(1);
+  function fetchJobOrder(pageNum: number) {
     setJoLoading(true);
-    fetch(reportUrl("jobOrder", { from: joFrom, to: joTo }))
-      .then((r) => (r.ok ? r.json() : { rows: [] }))
-      .then((data) => setJoRows(data.rows ?? []))
-      .catch(() => setJoRows([]))
+    fetch(reportUrl("jobOrder", { from: joFrom, to: joTo, page: String(pageNum), limit: String(PAGE_SIZE) }))
+      .then((r) => (r.ok ? r.json() : { rows: [], total: 0 }))
+      .then(setJoData)
+      .catch(() => setJoData({ rows: [], total: 0 }))
       .finally(() => setJoLoading(false));
   }
+  function applyJobOrder() {
+    setJoApplied(true);
+    setJoPage(1);
+    fetchJobOrder(1);
+  }
+  function joGoToPage(pageNum: number) {
+    setJoPage(pageNum);
+    fetchJobOrder(pageNum);
+  }
+  const joRows = joData?.rows ?? [];
+  const joTotal = joData?.total ?? 0;
+  const joTotalPages = Math.max(1, Math.ceil(joTotal / PAGE_SIZE));
 
   // --- Top Services ---
   const [tsFrom, setTsFrom] = useState("2026-01-01");
@@ -257,7 +286,7 @@ export default function ReportsPage() {
               <tbody className="divide-y divide-slate-100">
                 {dcRows.map((row, i) => (
                   <tr key={row.id}>
-                    <td className="py-2 pr-3 text-slate-500">{i + 1}</td>
+                    <td className="py-2 pr-3 text-slate-500">{(dcPage - 1) * PAGE_SIZE + i + 1}</td>
                     <td className="py-2 pr-3">{row.ref ?? "—"}</td>
                     <td className="py-2 pr-3">{row.orderReference}</td>
                     <td className="py-2 pr-3">{row.date}</td>
@@ -274,7 +303,7 @@ export default function ReportsPage() {
               {dcRows.length > 0 && (
                 <tfoot>
                   <tr className="border-t border-slate-200 font-semibold text-slate-900">
-                    <td colSpan={6} className="py-2 pr-3 text-right">Total</td>
+                    <td colSpan={6} className="py-2 pr-3 text-right">Total ({dcTotal} txns)</td>
                     <td className="py-2 pr-3 text-right">{money(dcTotals.amount, cur)}</td>
                     <td className="py-2 pr-3 text-right">{money(dcTotals.vat, cur)}</td>
                     <td className="py-2 pr-3 text-right">{money(dcTotals.total, cur)}</td>
@@ -284,6 +313,13 @@ export default function ReportsPage() {
               )}
             </table>
           </div>
+          )}
+          {dcApplied && !dcLoading && dcTotalPages > 1 && (
+            <div className="flex items-center justify-end gap-2 pt-3">
+              <button onClick={() => dcGoToPage(Math.max(1, dcPage - 1))} disabled={dcPage === 1} className="rounded-md px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100 disabled:opacity-30">Prev</button>
+              <span className="px-2 text-xs text-slate-500">Page {dcPage} of {dcTotalPages}</span>
+              <button onClick={() => dcGoToPage(Math.min(dcTotalPages, dcPage + 1))} disabled={dcPage === dcTotalPages} className="rounded-md px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100 disabled:opacity-30">Next</button>
+            </div>
           )}
         </ReportSection>
 
@@ -396,6 +432,13 @@ export default function ReportsPage() {
               </tbody>
             </table>
           </div>
+          )}
+          {joApplied && !joLoading && joTotalPages > 1 && (
+            <div className="flex items-center justify-end gap-2 pt-3">
+              <button onClick={() => joGoToPage(Math.max(1, joPage - 1))} disabled={joPage === 1} className="rounded-md px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100 disabled:opacity-30">Prev</button>
+              <span className="px-2 text-xs text-slate-500">Page {joPage} of {joTotalPages} · {joTotal} orders</span>
+              <button onClick={() => joGoToPage(Math.min(joTotalPages, joPage + 1))} disabled={joPage === joTotalPages} className="rounded-md px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100 disabled:opacity-30">Next</button>
+            </div>
           )}
         </ReportSection>
 

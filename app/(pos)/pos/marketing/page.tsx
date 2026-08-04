@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useStore } from "@/lib/store";
 import { usePos } from "@/lib/pos-store";
 import { isFeatureOn } from "@/lib/catalog";
@@ -22,17 +22,30 @@ const { tenants, plans } = useStore();
   const t = tenants.find((x) => x.id === pos.activeClientId)!;
   const channels = CHANNELS.filter((c) => isFeatureOn(plans, t.plan, t.featureOverrides, c.key));
   const customers = pos.customersFor(t.id);
-  const orders = pos.ordersFor(t.id);
+
+  // This page only ever needs recipient *counts*, not the actual order/customer
+  // rows — so it pulls those counts from the same lean endpoints the
+  // Dashboard/Customers pages use, instead of loading every order.
+  const [readyCount, setReadyCount] = useState(0);
+  const [balanceCount, setBalanceCount] = useState(0);
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/orders/summary?tenantId=${t.id}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => { if (!cancelled) setReadyCount(data?.statusCounts?.Ready ?? 0); })
+      .catch(() => {});
+    fetch(`/api/customers/order-stats?tenantId=${t.id}`)
+      .then((r) => (r.ok ? r.json() : {}))
+      .then((stats) => { if (!cancelled) setBalanceCount(Object.values(stats as Record<string, { balance: number }>).filter((s) => s.balance > 0).length); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [t.id]);
 
   const [channel, setChannel] = useState(channels[0]?.key ?? "sms");
   const [tpl, setTpl] = useState(TEMPLATES[0]);
   const [sent, setSent] = useState<number | null>(null);
 
-  const recipients = tpl.segment === "ready"
-    ? orders.filter((o) => o.status === "Ready")
-    : tpl.segment === "balance"
-    ? customers.filter((c) => pos.balanceFor(c.id) > 0)
-    : customers;
+  const recipientCount = tpl.segment === "ready" ? readyCount : tpl.segment === "balance" ? balanceCount : customers.length;
 
   return (
     <>
@@ -69,12 +82,12 @@ const { tenants, plans } = useStore();
         <Card className="p-5">
           <div className="flex items-center gap-2 text-sm font-semibold text-slate-900"><MessageSquare className="h-4 w-4 text-brand-600" /> Send</div>
           <div className="mt-4 rounded-lg bg-slate-50 p-4 text-center">
-            <div className="text-3xl font-semibold text-slate-900">{recipients.length}</div>
+            <div className="text-3xl font-semibold text-slate-900">{recipientCount}</div>
             <div className="text-xs text-slate-400">recipients · {tpl.segment === "ready" ? "orders ready" : tpl.segment === "balance" ? "with balance" : "all customers"}</div>
           </div>
           <div className="mt-3 text-sm"><Badge tone="brand">{channels.find((c) => c.key === channel)?.label}</Badge></div>
           {sent === null ? (
-            <Button className="mt-4 w-full" disabled={recipients.length === 0} onClick={() => setSent(recipients.length)}><Send className="h-4 w-4" /> Send campaign</Button>
+            <Button className="mt-4 w-full" disabled={recipientCount === 0} onClick={() => setSent(recipientCount)}><Send className="h-4 w-4" /> Send campaign</Button>
           ) : (
             <div className="mt-4 flex items-center justify-center gap-2 rounded-lg bg-emerald-50 py-2.5 text-sm font-medium text-emerald-700"><CheckCircle2 className="h-4 w-4" /> Queued to {sent} recipients</div>
           )}

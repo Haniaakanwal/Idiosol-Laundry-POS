@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@/lib/generated/prisma/client";
 import { getSessionFromHeaders } from "@/lib/api-auth";
 
 function toAppStatus(s: string) {
@@ -30,36 +31,70 @@ export async function GET(req: Request) {
   const to = url.searchParams.get("to");
   const range = dateRange(from, to);
 
+  const limit = Math.min(200, Math.max(1, Number(url.searchParams.get("limit")) || 50));
+  const page = Math.max(1, Number(url.searchParams.get("page")) || 1);
+  const skip = (page - 1) * limit;
+
   switch (kind) {
     case "dailyCash": {
       const type = url.searchParams.get("type");
-      const payments = await prisma.pOSPayment.findMany({
-        where: {
-          ...(range ? { date: range } : {}),
-          ...(type && type !== "All" ? { type } : {}),
-          order: { tenantId },
-        },
-        include: { order: { select: { reference: true, customerName: true, total: true, tax: true } } },
-        orderBy: { date: "asc" },
+      const where = {
+        ...(range ? { date: range } : {}),
+        ...(type && type !== "All" ? { type } : {}),
+        order: { tenantId },
+      };
+
+      const fromDate = from ? new Date(`${from}T00:00:00.000Z`) : new Date("1970-01-01T00:00:00.000Z");
+      const toDate = to ? new Date(`${to}T23:59:59.999Z`) : new Date("2999-12-31T23:59:59.999Z");
+
+      const [rows, total, totalsRaw] = await Promise.all([
+        prisma.pOSPayment.findMany({
+          where,
+          include: { order: { select: { reference: true, customerName: true, total: true, tax: true } } },
+          orderBy: { date: "asc" },
+          skip,
+          take: limit,
+        }),
+        prisma.pOSPayment.count({ where }),
+        // Computed directly in SQL — the DB sums this instead of Node looping
+        // over every matching payment, so it stays fast no matter the range size.
+        prisma.$queryRaw<{ amount: number | null; vat: number | null; total: number | null }[]>`
+          SELECT
+            SUM(p.amount - (o.tax * p.amount / NULLIF(o.total, 0))) as amount,
+            SUM(o.tax * p.amount / NULLIF(o.total, 0)) as vat,
+            SUM(p.amount) as total
+          FROM "POSPayment" p
+          JOIN "POSOrder" o ON o.id = p."orderId"
+          WHERE o."tenantId" = ${tenantId}
+            AND p.date BETWEEN ${fromDate} AND ${toDate}
+            ${type && type !== "All" ? Prisma.sql`AND p.type = ${type}` : Prisma.empty}
+        `,
+      ]);
+
+      const rawTotals = totalsRaw[0] ?? { amount: 0, vat: 0, total: 0 };
+      const totals = {
+        amount: Number(rawTotals.amount ?? 0),
+        vat: Number(rawTotals.vat ?? 0),
+        total: Number(rawTotals.total ?? 0),
+      };
+
+      return NextResponse.json({
+        rows: rows.map((p) => {
+          const vatShare = p.order.total > 0 ? (p.order.tax ?? 0) * (p.amount / p.order.total) : 0;
+          return {
+            id: p.id,
+            ref: p.ref,
+            orderReference: p.order.reference,
+            date: toDateStr(p.date),
+            customerName: p.order.customerName,
+            type: p.type,
+            amount: p.amount,
+            vatShare,
+          };
+        }),
+        total,
+        totals,
       });
-      let amount = 0, vat = 0, total = 0;
-      const rows = payments.map((p) => {
-        const vatShare = p.order.total > 0 ? (p.order.tax ?? 0) * (p.amount / p.order.total) : 0;
-        amount += p.amount - vatShare;
-        vat += vatShare;
-        total += p.amount;
-        return {
-          id: p.id,
-          ref: p.ref,
-          orderReference: p.order.reference,
-          date: toDateStr(p.date),
-          customerName: p.order.customerName,
-          type: p.type,
-          amount: p.amount,
-          vatShare,
-        };
-      });
-      return NextResponse.json({ rows, totals: { amount, vat, total } });
     }
 
     case "receiving": {
@@ -86,11 +121,17 @@ export async function GET(req: Request) {
     }
 
     case "jobOrder": {
-      const rows = await prisma.pOSOrder.findMany({
-        where: { tenantId, ...(range ? { date: range } : {}) },
-        include: { items: { select: { qty: true } } },
-        orderBy: { date: "asc" },
-      });
+      const where = { tenantId, ...(range ? { date: range } : {}) };
+      const [rows, total] = await Promise.all([
+        prisma.pOSOrder.findMany({
+          where,
+          include: { items: { select: { qty: true } } },
+          orderBy: { date: "asc" },
+          skip,
+          take: limit,
+        }),
+        prisma.pOSOrder.count({ where }),
+      ]);
       return NextResponse.json({
         rows: rows.map((o) => ({
           id: o.id,
@@ -103,6 +144,7 @@ export async function GET(req: Request) {
           paid: o.paid,
           balance: o.balance,
         })),
+        total,
       });
     }
 
